@@ -1,0 +1,1453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src data: blob:; connect-src 'none'; form-action 'none'; base-uri 'none'">
+<title>Stream Setup Map</title>
+<meta name="description" content="Draw your streaming setup: devices, cables, audio routing and power strip capacity. Everything stays in your browser.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230d5bd1'/%3E%3Cpath d='M7 10h7v5H7zM18 17h7v5h-7zM14 12.5h4v7' fill='none' stroke='%23fff' stroke-width='2.2'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow+Semi+Condensed:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: a wiring bench. Parts bin on the left, the diagram in the middle, a spec sheet on the right. Signal colours carry the meaning; the chrome stays quiet. */
+:root{
+  --bg:#eceff3; --panel:#ffffff; --ink:#17202b; --muted:#5a6676; --line:#d3d9e2; --accent:#0d5bd1;
+  --video:#1b66d6; --audio:#0b8a5f; --data:#7a4bd0; --net:#4f6477; --power:#c96a08; --soft:#8792a1;
+  --ok:#1a7f4f; --warn:#a86a00; --bad:#c5352a;
+  --display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --body:"Barlow Semi Condensed","Segoe UI",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#11151b; --panel:#1a2029; --ink:#e8ecf2; --muted:#9ba7b7; --line:#2f3947; --accent:#6aa5ff;
+    --video:#62a2ff; --audio:#3fd09d; --data:#b392ff; --net:#93a8bd; --power:#ffa64d; --soft:#7d899a;
+    --ok:#4fd093; --warn:#f0b34a; --bad:#ff7a6e;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#11151b; --panel:#1a2029; --ink:#e8ecf2; --muted:#9ba7b7; --line:#2f3947; --accent:#6aa5ff;
+  --video:#62a2ff; --audio:#3fd09d; --data:#b392ff; --net:#93a8bd; --power:#ffa64d; --soft:#7d899a;
+  --ok:#4fd093; --warn:#f0b34a; --bad:#ff7a6e;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.4;display:flex;flex-direction:column}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance;letter-spacing:.01em}
+
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--line)}
+.brand{font-family:var(--display);font-weight:700;font-size:22px;text-transform:uppercase;letter-spacing:.04em;margin-right:6px}
+.brand span{color:var(--accent)}
+.grp{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.spacer{flex:1}
+.btn{background:var(--panel);border:1px solid var(--line);border-radius:7px;padding:5px 11px;font-weight:500;white-space:nowrap}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--panel);font-weight:600}
+.btn.danger{color:var(--bad)}
+.btn.small{padding:3px 8px;font-size:13.5px}
+.btn:disabled{opacity:.45;cursor:default}
+.inp,select.inp{background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:5px 8px;min-width:0;width:100%}
+.bar .inp{width:auto}
+#setupName{width:190px;font-weight:600}
+
+.modes{display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;padding:8px 16px;border-bottom:1px solid var(--line)}
+.lbl{font-size:12.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600}
+.chip{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:3px 12px;font-weight:500;display:inline-flex;align-items:center;gap:7px}
+.chip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.chipset{display:inline-flex}
+.chipset .chip{border-radius:999px 0 0 999px;border-right:0;padding-right:7px}
+.chipset .x{border:1px solid var(--line);border-left:0;border-radius:0 999px 999px 0;background:var(--panel);color:var(--muted);padding:0 10px 0 5px;font-size:16px;line-height:1}
+.chipset .x:hover{color:var(--bad)}
+.chipset .chip[aria-pressed="true"] + .x{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.chip.add{border-style:dashed;color:var(--accent)}
+.chip.layer[aria-pressed="false"]{opacity:.5;text-decoration:line-through}
+.chip.layer[aria-pressed="true"]{background:var(--panel);color:var(--ink);border-color:var(--line)}
+.chip svg{flex:none}
+
+.work{flex:1;min-height:0;display:grid;grid-template-columns:186px minmax(0,1fr) 340px}
+.palette{overflow:auto;padding:12px 10px 16px 16px;border-right:1px solid var(--line);display:flex;flex-direction:column;gap:12px}
+.palette h2{font-size:17px;text-transform:uppercase;letter-spacing:.05em}
+.plist{display:flex;flex-direction:column;gap:5px}
+.pgroup .plist{gap:4px;margin:5px 0 4px}
+.pgroup summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:6px;padding:6px 9px;border:1px solid var(--line);border-radius:7px;background:var(--panel);font-size:12.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+.pgroup summary::-webkit-details-marker{display:none}
+.pgroup summary::before{content:"▸";color:var(--muted);margin-right:2px}
+.pgroup[open] summary::before{content:"▾"}
+.pgroup summary span:first-child{flex:1}
+.pgroup summary:hover{border-color:var(--accent)}
+.pgroup .cnt{color:var(--muted);font-weight:500;font-variant-numeric:tabular-nums}
+#findDev{width:100%}
+.padd{display:flex;align-items:center;gap:8px;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:7px;padding:5px 8px;font-size:14px;line-height:1.2}
+.padd:hover{border-color:var(--accent)}
+.padd svg{flex:none;stroke:var(--ink);fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+
+.stage{position:relative;min-width:0;min-height:0;overflow:hidden}
+#canvas{display:block;width:100%;height:100%;touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none}
+#canvas.panning{cursor:grabbing}
+.zoom{position:absolute;right:12px;top:12px;display:flex;gap:4px}
+.hint{position:absolute;left:12px;bottom:10px;right:12px;font-size:13px;color:var(--muted);pointer-events:none}
+.trace[hidden],.pop[hidden]{display:none}
+.pop{position:absolute;width:280px;background:var(--panel);border:1px solid var(--accent);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:8px;box-shadow:0 8px 24px rgba(10,14,20,.22);z-index:2}
+.pop .chip{padding:2px 10px;font-size:14px}
+.trace{position:absolute;left:12px;top:12px;background:var(--panel);border:1px solid var(--audio);border-radius:8px;padding:6px 10px;display:flex;gap:10px;align-items:center;font-weight:500}
+
+.side{border-left:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column;min-height:0}
+.tabs{display:flex;border-bottom:1px solid var(--line)}
+.tab{flex:1;background:none;border:0;border-bottom:3px solid transparent;padding:9px 4px 6px;font-family:var(--display);font-size:17px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.tab .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-left:5px;vertical-align:middle}
+.pane{overflow:auto;padding:14px 16px 20px;display:flex;flex-direction:column;gap:12px}
+.pane h3{font-size:19px}
+.pane p{margin:0;color:var(--muted);font-size:14px;max-width:60ch}
+.field{display:flex;flex-direction:column;gap:3px}
+.field>label,.field>.lbl{font-size:12.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
+.row{display:flex;gap:8px;align-items:center}
+.row>*{min-width:0}
+.row.sub{margin-left:14px}
+.row.sub2{margin-left:14px;margin-top:-6px}
+.row .check{flex:none;font-size:13.5px;gap:4px;align-items:center}
+.row .check input{margin:0}
+.usbsw{flex:none;width:18px;height:12px;border:1px solid var(--muted);border-radius:2px}
+.usbsw.c{border-radius:6px}
+.guide{font-size:13.5px}
+.guide summary{cursor:pointer;font-weight:600}
+.guide li{display:grid;grid-template-columns:18px 1fr;gap:2px 8px;align-items:center;padding:5px 0;border-top:1px solid var(--line)}
+.guide li small{grid-column:2;color:var(--muted)}
+.guide ul{list-style:none;margin:6px 0 0;padding:0}
+.row.sub select{flex:0 0 104px;width:104px}
+.swatches{display:flex;flex-wrap:wrap;gap:7px}
+.swb{width:24px;height:24px;border-radius:50%;border:2px solid var(--panel);outline:1px solid var(--line);padding:0}
+.swb[aria-pressed="true"]{outline:3px solid var(--ink)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.check{display:flex;gap:8px;align-items:flex-start;font-size:14.5px}
+.check input{margin-top:3px}
+hr{border:0;border-top:1px solid var(--line);margin:2px 0;width:100%}
+.list{display:flex;flex-direction:column;gap:4px;margin:0;padding:0;list-style:none}
+.item{display:flex;justify-content:space-between;gap:8px;align-items:center;border:1px solid var(--line);border-radius:7px;padding:5px 8px;background:var(--bg);font-size:14px;text-align:left;width:100%}
+button.item:hover{border-color:var(--accent)}
+.item .num{font-variant-numeric:tabular-nums;color:var(--muted);white-space:nowrap}
+.sw{display:inline-block;width:18px;height:0;border-top:3px solid;vertical-align:middle;margin-right:6px}
+
+.card{border:1px solid var(--line);border-left-width:5px;border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.card.ok{border-left-color:var(--ok)} .card.warn{border-left-color:var(--warn)} .card.bad{border-left-color:var(--bad)}
+.card header{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.card h4{margin:0;font-family:var(--display);font-size:18px;font-weight:600}
+.pill{border-radius:999px;padding:1px 9px;font-size:12.5px;font-weight:600;border:1px solid;white-space:nowrap}
+.pill.ok{color:var(--ok)} .pill.warn{color:var(--warn)} .pill.bad{color:var(--bad)}
+.pips{display:flex;flex-wrap:wrap;gap:4px}
+.pip{width:20px;height:24px;border:1.5px solid var(--muted);border-radius:4px;position:relative}
+.pip::before,.pip::after{content:"";position:absolute;top:6px;width:2px;height:7px;background:var(--muted);left:5px}
+.pip::after{left:auto;right:5px}
+.pip.on{background:var(--power);border-color:var(--power)} .pip.on::before,.pip.on::after{background:var(--panel)}
+.pip.over{background:var(--bad);border-color:var(--bad);border-style:dashed} .pip.over::before,.pip.over::after{background:var(--panel)}
+.meter{height:12px;border-radius:6px;background:var(--bg);border:1px solid var(--line);position:relative;overflow:hidden}
+.meter i{position:absolute;inset:0 auto 0 0;background:var(--ok)}
+.meter.warn i{background:var(--warn)} .meter.bad i{background:var(--bad)}
+.meter b{position:absolute;top:0;bottom:0;left:80%;width:2px;background:var(--ink);opacity:.55}
+.stat{font-variant-numeric:tabular-nums;font-size:14px}
+.msg{font-size:13.5px;color:var(--ink)} .msg.warn{color:var(--warn)} .msg.bad{color:var(--bad)}
+.big{font-family:var(--display);font-size:30px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.path{font-size:14px;border-left:3px solid var(--audio);padding:2px 0 2px 9px}
+.path small{color:var(--muted)}
+
+dialog{border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);padding:18px;width:min(520px,calc(100vw - 32px))}
+dialog::backdrop{background:rgba(10,14,20,.5)}
+dialog .dform{display:flex;flex-direction:column;gap:12px}
+.empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;padding:24px;pointer-events:none}
+.empty[hidden]{display:none}
+.empty>*{pointer-events:auto;max-width:440px;margin:0}
+.empty p{color:var(--muted)}
+dialog textarea{min-height:120px;font-family:ui-monospace,monospace;font-size:12.5px}
+.toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:8px;font-weight:500;max-width:calc(100vw - 32px);z-index:5}
+.toast[hidden]{display:none}
+
+@media (max-width:900px){
+  html,body{height:auto}
+  .work{display:flex;flex-direction:column}
+  .palette{max-height:270px;border-right:0;border-bottom:1px solid var(--line);padding:10px 16px}
+  .stage{height:520px;flex:none}
+  .side{border-left:0;border-top:1px solid var(--line)}
+  .pane{overflow:visible}
+  #setupName{width:150px}
+}
+@media (prefers-reduced-motion:no-preference){ .btn,.padd,.chip{transition:border-color .12s} }
+</style>
+</head>
+<body>
+<header class="bar">
+  <div class="brand">Stream Setup <span>Map</span></div>
+  <div class="grp">
+    <label class="lbl" for="setupSel">Setup</label>
+    <select id="setupSel" class="inp" aria-label="Choose a saved setup"></select>
+    <input id="setupName" class="inp" aria-label="Setup name" maxlength="60">
+    <button class="btn" id="btnNew" type="button">New blank</button>
+    <button class="btn" id="btnDup" type="button" title="Copy this setup so you can plan an upgrade without losing the current one">Duplicate</button>
+    <button class="btn danger" id="btnDel" type="button">Delete</button>
+  </div>
+  <div class="spacer"></div>
+  <div class="grp">
+    <button class="btn" id="btnUndo" type="button">Undo</button>
+    <button class="btn primary" id="btnPng" type="button">Save image</button>
+    <button class="btn" id="btnSvg" type="button">Save SVG</button>
+    <button class="btn" id="btnFile" type="button">Save setup file</button>
+    <button class="btn" id="btnOpen" type="button">Open setup</button>
+  </div>
+</header>
+<div class="modes">
+  <div class="grp" id="modeChips"></div>
+  <div class="spacer"></div>
+  <div class="grp" id="layerChips"></div>
+</div>
+<main class="work">
+  <aside class="palette" id="palette" aria-label="Add a device"></aside>
+  <section class="stage" id="stage">
+    <svg id="canvas" class="dg" role="application" aria-label="Setup diagram">
+      <defs id="defs"></defs>
+      <rect id="gridRect" width="100%" height="100%" fill="url(#grid)"></rect>
+      <g id="world"></g>
+    </svg>
+    <div class="trace" id="traceBar" hidden></div>
+    <div class="zoom">
+      <button class="btn small" id="zOut" type="button" aria-label="Zoom out">−</button>
+      <button class="btn small" id="zIn" type="button" aria-label="Zoom in">+</button>
+      <button class="btn small" id="zFit" type="button">Fit</button>
+    </div>
+    <div class="empty" id="emptyMsg" hidden>
+      <h3>Your canvas is empty</h3>
+      <p>Open a section on the left and click a device to place it here. Then drag from one device to another to run a cable.</p>
+      <button class="btn" type="button" id="emptyExample">Load an example setup instead</button>
+    </div>
+    <div class="pop" id="cablePop" hidden></div>
+    <div class="hint">Drag a + dot or a port dot onto another device or port to run a cable. Click a device to spotlight its cables, and drag the square on its corner to resize it.</div>
+  </section>
+  <aside class="side">
+    <div class="tabs" role="tablist" id="tabs"></div>
+    <div class="pane" id="pane"></div>
+  </aside>
+</main>
+
+<dialog id="dlgOpen">
+  <div class="dform" id="formOpen">
+    <h3>Open a setup</h3>
+    <p>Choose a setup file you saved from this app, or paste setup code someone sent you. It is added as a new setup; nothing is overwritten.</p>
+    <div class="field"><label for="openFile">Setup file (.json)</label><input type="file" id="openFile" accept=".json,application/json"></div>
+    <div class="field"><label for="openText">Or paste setup code</label><textarea id="openText" class="inp" spellcheck="false"></textarea></div>
+    <p id="openErr" class="msg bad" hidden></p>
+    <div class="row"><button class="btn primary" type="button" id="openOk">Add setup</button><button class="btn" type="button" id="openCancel">Cancel</button></div>
+  </div>
+</dialog>
+<dialog id="dlgMode">
+  <div class="dform" id="formMode">
+    <h3>Add a filter</h3>
+    <p>A filter shows only the cables used for one activity, such as streaming from one PC or playing a console.</p>
+    <div class="field"><label for="modeName">Name</label><input id="modeName" class="inp" maxlength="40" placeholder="e.g. Xbox, Podcast, Streaming on Laptop"></div>
+    <p id="modeErr" class="msg bad" hidden>Give the filter a name first.</p>
+    <div class="field"><label for="modeStream">Stream runs on</label><select id="modeStream" class="inp"></select></div>
+    <div class="field"><label for="modeCopy">Cables</label><select id="modeCopy" class="inp"></select></div>
+    <div class="row"><button class="btn primary" type="button" id="modeOk">Add filter</button><button class="btn" type="button" id="modeCancel">Cancel</button></div>
+  </div>
+</dialog>
+<dialog id="dlgConfirm">
+  <div class="dform">
+    <h3 id="confTitle"></h3>
+    <p id="confText"></p>
+    <div class="row"><button class="btn primary" type="button" id="confYes"></button><button class="btn" type="button" id="confNo">Cancel</button></div>
+  </div>
+</dialog>
+<div class="toast" id="toast" hidden role="status"></div>
+
+<script>
+"use strict";
+/* ---------- catalogue ---------- */
+const TYPES = {
+  desktop:{label:"Desktop PC",group:"Computers",watts:450,plugs:1,icon:"M7 3h10v18H7z M10 7h4 M10 10h4 M12 17h.01"},
+  mobilepc:{label:"Mobile broadcasting PC",group:"Computers",watts:180,plugs:1,icon:"M3 8h18v11H3z M9 8V5h6v3 M3 13h18 M11 12h2v2h-2z"},
+  app:{label:"App / software",group:"",watts:0,plugs:0,icon:"M3 5h18v14H3z M3 9h18 M6 7h.01 M9 7h.01 M10 12l5 3-5 3z"},
+  bonder:{label:"Bonding encoder (cellular)",group:"Video",watts:25,plugs:1,icon:"M4 8h16v10H4z M8 8V5 M12 8V3 M16 8V5 M8 13h8"},
+  hotspot:{label:"Mobile hotspot / 5G modem",group:"Network & storage",watts:0,plugs:0,icon:"M7 10h10v10H7z M10 6a3 3 0 014 0 M8 4a6 6 0 018 0 M10 16h4"},
+  powerstation:{label:"Portable power station",group:"Power",source:true,outlets:2,maxW:300,icon:"M4 8h16v11H4z M8 8V5h8v3 M13 11l-3 3.5h4L11 18"},
+  laptop:{label:"Laptop",group:"Computers",watts:90,plugs:1,icon:"M5 5h14v10H5z M3 19h18l-2-4H5z"},
+  minipc:{label:"Mini PC",group:"Computers",watts:65,plugs:1,icon:"M4 9h16v8H4z M7 13h.01 M10 13h4"},
+  handheld:{label:"Handheld console",group:"Computers",watts:45,plugs:1,icon:"M2 8h20v8H2z M7 8v8 M17 8v8 M4.5 11h.01 M19.5 13h.01"},
+  tablet:{label:"Tablet / phone",group:"Computers",watts:0,plugs:0,icon:"M6 3h12v18H6z M11 18h2"},
+  console:{label:"Game console",group:"Computers",watts:200,plugs:1,icon:"M3 8h18v8H3z M7 12h3 M8.5 10.5v3 M15.5 11h.01 M17.5 13h.01"},
+  monitor:{label:"Monitor",group:"Screens",watts:35,plugs:1,icon:"M3 4h18v12H3z M9 20h6 M12 16v4"},
+  tv:{label:"TV",group:"Screens",watts:110,plugs:1,icon:"M2 5h20v13H2z M7 21h10"},
+  portmon:{label:"Portable monitor",group:"Screens",watts:0,plugs:0,icon:"M3 5h18v12H3z M8 21l2-4 M16 21l-2-4"},
+  projector:{label:"Projector",group:"Screens",watts:250,plugs:1,icon:"M2 9h20v8H2z M13 13a2 2 0 104 0 2 2 0 10-4 0 M5 12h4 M6 17v2 M18 17v2"},
+  vr:{label:"VR headset",group:"Screens",watts:0,plugs:0,icon:"M3 8h18v8h-6l-3-3-3 3H3z"},
+  hdmiswitch:{label:"HDMI switch",group:"Video",watts:0,plugs:0,icon:"M4 8h16v8H4z M8 16v3 M12 16v3 M16 16v3 M12 8V5"},
+  hdmisplit:{label:"HDMI splitter",group:"Video",watts:0,plugs:0,icon:"M4 8h16v8H4z M12 16v3 M8 8V5 M16 8V5"},
+  vmixer:{label:"Video switcher",group:"Video",watts:20,plugs:1,icon:"M3 5h18v14H3z M3 12h18 M7 15.5h2 M11 15.5h2 M15 15.5h2 M7 8.5h10"},
+  ringlight:{label:"Ring light",group:"Lighting",watts:20,plugs:1,icon:"M12 4a6 6 0 100 12 6 6 0 000-12z M12 16v5 M8 21h8"},
+  rgb:{label:"RGB light strip",group:"Lighting",watts:15,plugs:1,icon:"M3 12h18 M5 9v6 M9 9v6 M13 9v6 M17 9v6 M21 9v6"},
+  wheadset:{label:"Wireless headset",group:"Audio",watts:0,plugs:0,icon:"M4 15v-2a8 8 0 0116 0v2 M4 14h3v6H5a1 1 0 01-1-1z M20 14h-3v6h2a1 1 0 001-1z M7 20c0 1.5 2 2 5 2"},
+  dac:{label:"DAC / headphone amp",group:"Audio",watts:10,plugs:1,icon:"M3 8h18v8H3z M8 12a1.5 1.5 0 103 0 1.5 1.5 0 10-3 0 M15 12h3"},
+  avr:{label:"AV receiver",group:"Audio",watts:300,plugs:1,icon:"M2 7h20v10H2z M6 12h6 M16 12h3 M5 17v2 M19 17v2"},
+  sub:{label:"Subwoofer",group:"Audio",watts:100,plugs:1,icon:"M5 3h14v18H5z M8 12a4 4 0 108 0 4 4 0 10-8 0"},
+  keyboard:{label:"Keyboard",group:"Controls",watts:0,plugs:0,icon:"M2 7h20v10H2z M6 11h.01 M10 11h.01 M14 11h.01 M18 11h.01 M7 14h10"},
+  mouse:{label:"Mouse",group:"Controls",watts:0,plugs:0,icon:"M7 9a5 5 0 0110 0v6a5 5 0 01-10 0z M12 5v5"},
+  controller:{label:"Game controller",group:"Controls",watts:0,plugs:0,icon:"M6 8h12a4 4 0 014 4v2a3 3 0 01-5.5 1.5L15 14H9l-1.5 1.5A3 3 0 012 14v-2a4 4 0 014-4z M7 11v2 M6 12h2 M16.5 12h.01"},
+  kvm:{label:"KVM switch",group:"Controls",watts:0,plugs:0,icon:"M3 8h18v8H3z M7 12h.01 M11 12h.01 M15 12h2 M8 16v3 M16 16v3"},
+  usbswitch:{label:"USB switch",group:"Controls",watts:0,plugs:0,icon:"M4 9h16v6H4z M8 9V5 M16 9V5 M12 15v4"},
+  modem:{label:"Modem",group:"Network & storage",watts:10,plugs:1,icon:"M3 13h18v6H3z M7 16h.01 M11 16h.01 M12 13V8 M9 6a4 4 0 016 0"},
+  nas:{label:"NAS / external drive",group:"Network & storage",watts:30,plugs:1,icon:"M5 3h14v18H5z M8 7h8 M8 11h8 M8 17h.01"},
+  capture:{label:"Capture card (external USB)",group:"Video",watts:0,plugs:0,icon:"M3 8h18v8H3z M7 16v3 M11 16v3 M15 16v3 M6 11h4"},
+  webcam:{label:"Webcam",group:"Video",watts:0,plugs:0,icon:"M12 3a6 6 0 110 12 6 6 0 010-12z M12 7a2 2 0 110 4 2 2 0 010-4z M12 15v3 M7 21h10l-2-3H9z"},
+  camera:{label:"Camera (DSLR / mirrorless)",group:"Video",watts:10,plugs:1,icon:"M3 7h4l2-2h6l2 2h4v12H3z M12 10a3 3 0 110 6 3 3 0 010-6z"},
+  light:{label:"Key light",group:"Lighting",watts:40,plugs:1,icon:"M5 4h14v10H5z M12 14v6 M8 20h8"},
+  mic:{label:"Microphone",group:"Audio",watts:0,plugs:0,icon:"M12 3a3 3 0 00-3 3v6a3 3 0 006 0V6a3 3 0 00-3-3z M6 11a6 6 0 0012 0 M12 17v4 M9 21h6"},
+  headphones:{label:"Headphones",group:"Audio",watts:0,plugs:0,icon:"M4 15v-2a8 8 0 0116 0v2 M4 14h3v6H5a1 1 0 01-1-1z M20 14h-3v6h2a1 1 0 001-1z"},
+  soundbar:{label:"Soundbar",group:"Audio",watts:30,plugs:1,icon:"M2 9h20v6H2z M6 12h.01 M10 12h4 M18 12h.01"},
+  speakers:{label:"Speakers",group:"Audio",watts:25,plugs:1,icon:"M6 3h12v18H6z M12 7h.01 M12 11.5a3 3 0 110 6 3 3 0 010-6z"},
+  mixer:{label:"Audio mixer / interface",group:"Audio",watts:10,plugs:1,icon:"M3 4h18v16H3z M8 8v8 M12 8v8 M16 8v8 M6.5 10h3 M10.5 14h3 M14.5 11h3"},
+  adapter:{label:"Audio adapter",group:"Audio",watts:0,plugs:0,icon:"M8 8h8v8H8z M2 12h6 M16 10h6 M16 14h6"},
+  software:{label:"Audio app (virtual mixer)",group:"Audio",watts:0,plugs:0,icon:"M3 5h18v14H3z M3 9h18 M7 13v3 M11 12v4 M15 14v2"},
+  videobar:{label:"Video bar (camera, mic, speaker)",group:"Meetings",watts:30,plugs:1,icon:"M2 9h20v6H2z M12 10.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3z M5 12h3 M16 12h3"},
+  confcam:{label:"Conference camera (PTZ)",group:"Meetings",watts:12,plugs:1,icon:"M6 4h12v9H6z M12 6.5a2 2 0 110 4 2 2 0 010-4z M10 13v4 M14 13v4 M7 20h10v-3H7z"},
+  speakerphone:{label:"Speakerphone",group:"Meetings",watts:0,plugs:0,icon:"M12 5a7 7 0 110 14 7 7 0 010-14z M12 9a3 3 0 110 6 3 3 0 010-6z"},
+  micarray:{label:"Table / ceiling mic",group:"Meetings",watts:0,plugs:0,icon:"M4 14h16l-2 4H6z M8 10a4 4 0 018 0 M5 8a7 7 0 0114 0"},
+  wmic:{label:"Wireless mic receiver",group:"Meetings",watts:5,plugs:0,icon:"M5 12h14v7H5z M8 12V6 M16 12V6 M9 15.5h6"},
+  confphone:{label:"Conference phone",group:"Meetings",watts:8,plugs:0,icon:"M12 4l8 14H4z M12 10v4 M9 16h6"},
+  doccam:{label:"Document camera",group:"Meetings",watts:5,plugs:0,icon:"M5 20h10 M8 20V7l8-3 M16 4l2 3-3 1.5z"},
+  roomctl:{label:"Room controller (touch panel)",group:"Meetings",watts:10,plugs:0,icon:"M4 7h16v10H4z M9 20h6 M8 11h3 M13 11h3 M8 14h8"},
+  wpres:{label:"Wireless presentation receiver",group:"Meetings",watts:10,plugs:1,icon:"M4 13h16v6H4z M8 9a6 6 0 018 0 M10 11a3 3 0 014 0 M7 16h.01"},
+  streamdeck:{label:"Stream Deck",group:"Controls",watts:0,plugs:0,icon:"M3 5h18v14H3z M7 9h2v2H7z M11 9h2v2h-2z M15 9h2v2h-2z M7 13h2v2H7z M11 13h2v2h-2z M15 13h2v2h-2z"},
+  hub:{label:"USB hub / dock",group:"Controls",watts:20,plugs:1,icon:"M4 9h16v6H4z M8 15v4 M12 15v4 M16 15v4 M12 5v4"},
+  router:{label:"Router / switch",group:"Network & storage",watts:12,plugs:1,icon:"M3 13h18v6H3z M7 16h.01 M11 16h.01 M17 13V6 M7 13V8"},
+  other:{label:"Other device",group:"Controls",watts:0,plugs:0,icon:"M4 6h16v12H4z M9 12h6"},
+  strip:{label:"Power strip",group:"Power",source:true,outlets:6,maxW:1800,icon:"M2 8h20v8H2z M6 11v2 M8 11v2 M12 11v2 M14 11v2 M18 12h.01"},
+  extcord:{label:"Extension cord",group:"Power",source:true,outlets:1,maxW:1625,icon:"M3 9h7v6H3z M5.5 11.5v1 M7.5 11.5v1 M10 12h3c3 0 2 5 5 5h3 M18 15v4 M21 15v4"},
+  ups:{label:"UPS battery backup",group:"Power",source:true,outlets:8,maxW:900,icon:"M5 3h14v18H5z M9 7h6 M13 10l-3 4h4l-3 4"},
+  wall:{label:"Wall outlet",group:"Power",source:true,outlets:2,maxW:1800,icon:"M5 3h14v18H5z M10 8v3 M14 8v3 M10 15v2 M14 15v2"}
+};
+const GROUPS = ["Computers","Screens","Video","Meetings","Lighting","Audio","Controls","Network & storage","Power"];
+const COMP = ["desktop","laptop","mobilepc","minipc","console","handheld"];
+const isSoft = d => d.type==="software" || d.type==="app";
+const APPS = [["OBS Studio","Live streaming and recording"],["Streamlabs Desktop","Live streaming with overlays"],["vMix","Live production and switching"],["XSplit Broadcaster","Live streaming"],["Wirecast","Live production"],["NDI Tools","Video over the network"],["Zoom","Video meetings"],["Microsoft Teams","Video meetings"],["Google Meet","Video meetings in the browser"],["Discord","Voice chat and party audio"],["Other app",""]];
+const APP_ICON = "M3 5h18v14H3z M3 9h18 M6 7h.01 M9 7h.01 M10 12l5 3-5 3z";
+const CABLES = {
+  hdmi:{label:"HDMI",signal:"video",audio:true}, dp:{label:"DisplayPort",signal:"video",audio:false},
+  usb:{label:"USB",signal:"data",audio:false}, usbc:{label:"USB-C / Thunderbolt",signal:"data",audio:false},
+  xlr:{label:"XLR",signal:"audio",audio:true}, trs:{label:"3.5 mm",signal:"audio",audio:true},
+  optical:{label:"Optical",signal:"audio",audio:true}, rca:{label:"RCA",signal:"audio",audio:true},
+  wireless:{label:"Wireless",signal:"audio",audio:true}, eth:{label:"Ethernet",signal:"net",audio:false},
+  internal:{label:"Internal slot",signal:"data",audio:false}, other:{label:"Other",signal:"data",audio:false}
+};
+const SIGNALS = {
+  video:{label:"Video",dash:""}, audio:{label:"Audio",dash:"9 5"}, data:{label:"USB / data",dash:"2 6"},
+  net:{label:"Network",dash:"12 4 2 4"}, power:{label:"Power cables",dash:"1 7"}, soft:{label:"Software",dash:"4 4"}
+};
+const LIGHT = {bg:"#ffffff",panel:"#ffffff",ink:"#17202b",muted:"#5a6676",line:"#c9d0da",accent:"#0d5bd1",video:"#1b66d6",audio:"#0b8a5f",data:"#7a4bd0",net:"#4f6477",power:"#c96a08",soft:"#8792a1",ok:"#1a7f4f",warn:"#a86a00",bad:"#c5352a"};
+const FONT = '"Barlow Semi Condensed","Segoe UI",system-ui,sans-serif';
+const DIAGRAM_CSS = `
+.dg text{font-family:${FONT};fill:var(--ink)}
+.dg .node-box{fill:var(--panel);stroke:var(--line);stroke-width:1.5}
+.dg .node.src .node-box{stroke:var(--power)}
+.dg .node.soft .node-box{stroke:var(--soft);stroke-dasharray:6 4}
+.dg .node.cand .node-box{stroke:var(--accent);stroke-dasharray:5 4}
+.dg .node.drop .node-box{stroke:var(--accent);stroke-width:3.5;stroke-dasharray:none;fill:color-mix(in srgb,var(--accent) 14%,var(--panel))}
+.dg .node-box{stroke-width:2}
+.dg .node.sel .node-box{stroke-width:3}
+.dg .live rect{fill:var(--bad)} .dg .live text{fill:#fff} .dg .live circle{fill:#fff}
+.dg .spc rect{fill:var(--panel);stroke:var(--bad);stroke-width:1.5} .dg .spc text,.dg .spc circle{fill:var(--bad)}
+.dg .live text,.dg .spc text{font-size:10.5px;font-weight:700;letter-spacing:.06em}
+.dg .rz{fill:var(--panel);stroke:var(--accent);stroke-width:2.5;cursor:nwse-resize}
+.dg .sel-ring{fill:none;stroke:var(--accent);stroke-width:2.5;stroke-dasharray:7 5}
+.dg .n-tint{fill-opacity:.14;pointer-events:none}
+.dg .node.dim{opacity:.28}
+.dg .n-icon{fill:none;stroke:var(--ink);stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.dg .n-name{font-size:14.5px;font-weight:600}
+.dg .n-sub{font-size:12px;fill:var(--muted)}
+.dg .n-foot{font-size:12px;fill:var(--muted)}
+.dg .n-foot.warn{fill:var(--warn);font-weight:600}
+.dg .n-foot.bad{fill:var(--bad);font-weight:600}
+.dg .n-div{stroke:var(--line);stroke-width:1}
+.dg .edge .case{fill:none;stroke:var(--bg);stroke-width:7;stroke-linecap:round;stroke-linejoin:round}
+.dg .edge .line{fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.dg .edge .hit{fill:none;stroke:transparent;stroke-width:16}
+.dg .edge:hover .line{stroke-width:3.6}
+.dg .edge.dim,.dg .elab.dim{opacity:.13}
+.dg .edge.hot .line{stroke-width:4.2}
+.dg .edge.hot .case{stroke-width:9}
+.dg .edge.sel .line{stroke-width:4.6}
+.dg .edge.preview{pointer-events:none}
+.dg .edge.preview .line{stroke-width:3.4;stroke-dasharray:7 6}
+.dg .elab rect{fill:var(--bg);stroke:var(--line);stroke-width:1}
+.dg .elab text{font-size:11.5px;font-weight:600}
+.dg .elab{cursor:pointer}
+.dg .sig-video .line{stroke:var(--video)} .dg .elab.sig-video text,.dg .mk-video{fill:var(--video)}
+.dg .sig-audio .line{stroke:var(--audio)} .dg .elab.sig-audio text,.dg .mk-audio{fill:var(--audio)}
+.dg .sig-data .line{stroke:var(--data)} .dg .elab.sig-data text,.dg .mk-data{fill:var(--data)}
+.dg .sig-net .line{stroke:var(--net)} .dg .elab.sig-net text,.dg .mk-net{fill:var(--net)}
+.dg .sig-power .line{stroke:var(--power);stroke-width:2} .dg .mk-power{fill:var(--power)}
+.dg .sig-soft .line{stroke:var(--soft);stroke-width:1.6} .dg .elab.sig-soft text{fill:var(--muted)} .dg .mk-soft{fill:var(--soft)}
+.dg .n-mixk{font-size:12px;font-weight:600}
+.dg .n-col{font-size:9.5px;font-weight:600;letter-spacing:.05em;fill:var(--muted)}
+.dg .mdot{stroke:var(--muted);stroke-width:1.4;fill:none}
+.dg .mdot.on{fill:var(--audio);stroke:var(--audio)}
+.dg .handle{cursor:crosshair;opacity:0}
+.dg .node:hover .handle,.dg .node.sel .handle{opacity:1}
+.dg .hitc{fill:transparent}
+.dg .g-band{fill:var(--bg)}
+.dg .n-ghead{font-size:10.5px;font-weight:600;letter-spacing:.07em;fill:var(--muted)}
+.dg .n-port{font-size:12px}
+.dg .n-ptag{font-size:10.5px;fill:var(--muted)}
+.dg .p-row{fill:transparent}
+.dg .usb-sw{stroke:var(--muted);stroke-width:.9}
+.dg .usb-sw.unset{stroke-dasharray:2 1.5}
+.dg .n-ptag.warn{fill:var(--warn);font-weight:600}
+.dg .p-row.drop{fill:color-mix(in srgb,var(--accent) 24%,var(--panel))}
+.dg .phandle{cursor:crosshair}
+.dg .phandle:hover .pdot{stroke-width:4}
+.dg .pdot{fill:var(--panel);stroke-width:2;stroke:var(--data)}
+.dg .pd-video{stroke:var(--video)} .dg .pd-video.used{fill:var(--video)}
+.dg .pd-audio{stroke:var(--audio)} .dg .pd-audio.used{fill:var(--audio)}
+.dg .pd-data.used{fill:var(--data)}
+.dg .pd-net{stroke:var(--net)} .dg .pd-net.used{fill:var(--net)}
+.dg .toggle{cursor:pointer}
+.dg .toggle rect{fill:var(--bg);stroke:var(--line)}
+.dg .toggle:hover rect{stroke:var(--accent)}
+.dg .toggle path{fill:none;stroke:var(--ink);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.dg .handle .dot{fill:var(--accent);stroke:var(--panel);stroke-width:2}
+.dg .handle path{stroke:var(--panel);stroke-width:2;stroke-linecap:round}
+.dg .grip{fill:var(--panel);stroke:var(--accent);stroke-width:3;cursor:grab}
+.dg .node{cursor:move}
+.dg .edge{cursor:pointer}
+.dg .rubber{stroke:var(--accent);stroke-width:3;stroke-dasharray:7 6;fill:none;stroke-linecap:round;pointer-events:none}
+.dg .rubber-end{fill:var(--accent);pointer-events:none}
+.dg .x-title{font-family:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;font-size:26px;font-weight:700}
+.dg .x-sub{font-size:13px;fill:var(--muted)}
+.dg .x-leg{font-size:12.5px}
+.dg .gdot{fill:var(--line)}
+`;
+document.head.appendChild(Object.assign(document.createElement("style"),{textContent:DIAGRAM_CSS}));
+
+/* ---------- helpers ---------- */
+const $ = s => document.querySelector(s);
+const uid = () => Math.random().toString(36).slice(2,9);
+const NS = "http://www.w3.org/2000/svg";
+function mk(ns, tag, attrs, kids){
+  const e = ns ? document.createElementNS(NS, tag) : document.createElement(tag);
+  for (const k in attrs||{}){ const v = attrs[k];
+    if (v == null || v === false) continue;
+    if (k.startsWith("on")) e.addEventListener(k.slice(2), v);
+    else if (k === "text") e.textContent = v;
+    else if (!ns && (k === "value" || k === "checked" || k === "disabled" || k === "hidden" || k === "selected")) e[k] = v;
+    else e.setAttribute(k, v === true ? "" : v);
+  }
+  for (const c of [].concat(kids||[]).flat()) if (c != null && c !== false) e.append(c);
+  return e;
+}
+const h = (t,a,...k) => mk(false,t,a,k);
+const s = (t,a,...k) => mk(true,t,a,k);
+const cut = (t,n) => { t = String(t||""); return t.length > n ? t.slice(0,n-1) + "…" : t; };
+const fmt = n => Math.round(n).toLocaleString("en-US");
+function toast(msg){ const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(()=>t.hidden = true, 3600); }
+
+/* ---------- data ---------- */
+const NODE_W = 184;
+const ROW = 18, GH = 20, PTOP = 80;
+const hasPorts = d => !!(d.groups && d.groups.length);
+const PALETTE = ["#2f6fdd","#0f9d6e","#d2552b","#8b54d6","#c2337a","#0e93b5","#b07d0a","#5a6bd8","#3f9c35","#d1434b","#7c6853","#1f8a8a"];
+const colourOf = d => d.color || "#5a6676";
+function nextColour(st){ const n = PALETTE.map(c=>st.devices.filter(d=>d.color===c).length); return PALETTE[n.indexOf(Math.min(...n))]; }
+function colourAll(st){ st.devices.forEach(d=>{ if (!d.color) d.color = nextColour(st); }); }
+const MIXES = [["personal","Personal mix","Personal"," → ","What you hear"],["stream","Stream mix","Stream"," → ","What your viewers hear"],["mic","Mic input","Mic in"," ← ","The microphone the app listens to"]];
+const newMix = () => ({personal:null,stream:null,mic:null,personalName:"",streamName:"",micName:""});
+const baseH = d => d.type === "software" ? 141 + Math.max(1,(d.channels||[]).length)*17
+  : (d.expanded && hasPorts(d)) ? PTOP + d.groups.reduce((a,g)=>a+GH+g.ports.length*ROW,0) + 8 : 76;
+const sc = d => Math.max(.6, Math.min(2.5, +d.scale || 1));
+const nodeW = d => NODE_W*sc(d), nodeH = d => baseH(d)*sc(d);
+function portY(d,pid){ if (!d || !pid || !d.expanded || !hasPorts(d)) return null; let y = PTOP;
+  for (const g of d.groups){ y += GH; for (const p of g.ports){ if (p.id===pid) return y+ROW/2; y += ROW; } } return null; }
+function portAt(d,wy0){ if (!d.expanded || !hasPorts(d)) return null; const wy = (wy0-d.y)/sc(d); let y = PTOP;
+  for (const g of d.groups){ y += GH; for (const p of g.ports){ if (wy>=y && wy<y+ROW) return p.id; y += ROW; } } return null; }
+function findPort(d,pid){ if (!d || !pid) return null; for (const g of d.groups||[]) for (const p of g.ports) if (p.id===pid) return p; return null; }
+const PRESETS = {
+  board:{label:"Motherboard ports",name:"Motherboard",ports:[["USB 1","usb","black"],["USB 2","usb","blue"],["USB 3","usb","red"],["USB-C","usbc","c10"],["Front headphones","trs"],["Line out","trs"],["Line in","trs"],["Mic in","trs"],["Optical out","optical"],["Ethernet","eth"]]},
+  gpu:{label:"Graphics card",name:"Graphics card",ports:[["HDMI","hdmi"],["DisplayPort 1","dp"],["DisplayPort 2","dp"]]},
+  capture:{label:"Capture card",name:"Capture card",ports:[["HDMI in","hdmi"],["HDMI out (passthrough)","hdmi"]]},
+  capture2:{label:"Capture card, 2 inputs",name:"Capture card (dual)",ports:[["HDMI in 1","hdmi"],["HDMI in 2","hdmi"]]},
+  sound:{label:"Sound card",name:"Sound card",ports:[["Line out","trs"],["Headphones","trs"],["Line in","trs"],["Mic in","trs"],["Optical out","optical"]]},
+  tb:{label:"Thunderbolt / USB-C card",name:"Thunderbolt card",ports:[["USB-C 1","usbc","c40"],["USB-C 2","usbc","c40"]]},
+  usbcard:{label:"USB card",name:"USB card",ports:[["USB 1","usb","blue"],["USB 2","usb","blue"],["USB 3","usb","blue"],["USB 4","usb","blue"]]},
+  net:{label:"Network card",name:"Network card",ports:[["Ethernet","eth"]]},
+  blank:{label:"Custom card",name:"Custom card",ports:[["Port 1","usb"]]}
+};
+const preset = (k,fixed) => ({id:fixed?k:uid(),name:PRESETS[k].name,ports:PRESETS[k].ports.map(([name,type,usb],i)=>({id:fixed?k+"-"+i:uid(),name,type,usb:usb||""}))});
+/* USB-A port colours and what each usually means. Colours are a maker's convention, so the manual has the last word. */
+const USB = {
+  white:{label:"White · USB 1.1",color:"#f3f3ee",short:"12 Mbps",speed:"12 Mbps",mbps:12,power:"0.5 A",note:"Legacy port. Keyboards and mice only."},
+  black:{label:"Black · USB 2.0",color:"#1c1e22",short:"480 Mbps",speed:"480 Mbps",mbps:480,power:"0.5 A (2.5 W)",note:"Keyboard, mouse, Stream Deck, USB mic, headset. Too slow for most capture cards."},
+  blue:{label:"Blue · USB 3.0 (5 Gbps)",color:"#1f6fe0",short:"5 Gbps",speed:"5 Gbps",mbps:5000,power:"0.9 A (4.5 W)",note:"Capture cards, webcams, external drives."},
+  teal:{label:"Teal · USB 3.2 Gen 2 (10 Gbps)",color:"#17b3a5",short:"10 Gbps",speed:"10 Gbps",mbps:10000,power:"0.9 A (4.5 W)",note:"4K capture cards and fast SSDs."},
+  red:{label:"Red · fast, usually always on",color:"#d8392e",short:"10 Gbps",speed:"10 Gbps or more",mbps:10000,power:"often higher current, stays powered when the PC is off",note:"Fast devices, or charging with the PC off. Meaning varies by brand."},
+  yellow:{label:"Yellow · always-on charging",color:"#f1c22e",short:"Always on",speed:"480 Mbps or 5 Gbps",mbps:5000,power:"stays powered when the PC sleeps or is off",note:"Charging a phone or controller. Can be USB 2.0 or 3.0 underneath."},
+  orange:{label:"Orange · always-on charging",color:"#ef8a22",short:"Always on",speed:"up to 5 Gbps",mbps:5000,power:"stays powered when the PC sleeps or is off",note:"Rare on home PCs. Charging port."},
+  c2:{c:true,label:"USB-C · USB 2.0 (480 Mbps)",color:"#8b94a1",short:"480 Mbps",speed:"480 Mbps",mbps:480,power:"up to 15 W, more with Power Delivery",note:"Charging and slow devices."},
+  c5:{c:true,label:"USB-C · 5 Gbps",color:"#8b94a1",short:"5 Gbps",speed:"5 Gbps",mbps:5000,power:"up to 15 W, more with Power Delivery",note:"Capture cards, webcams, drives."},
+  c10:{c:true,label:"USB-C · 10 Gbps",color:"#8b94a1",short:"10 Gbps",speed:"10 Gbps",mbps:10000,power:"up to 15 W, more with Power Delivery",note:"4K capture cards, fast SSDs, docks."},
+  c20:{c:true,label:"USB-C · 20 Gbps (USB 3.2 Gen 2x2)",color:"#8b94a1",short:"20 Gbps",speed:"20 Gbps",mbps:20000,power:"up to 15 W, more with Power Delivery",note:"Very fast SSDs."},
+  c40:{c:true,label:"USB-C · USB4 / Thunderbolt (40 Gbps)",color:"#8b94a1",short:"40 Gbps",speed:"40 Gbps",mbps:40000,power:"15 W or more, often charges a laptop",note:"Docks, external capture boxes, monitors over one cable."},
+  c80:{c:true,label:"USB-C · USB4 v2 / Thunderbolt 5 (80 Gbps)",color:"#8b94a1",short:"80 Gbps",speed:"80 Gbps",mbps:80000,power:"15 W or more, often charges a laptop",note:"Newest docks and displays."}
+};
+const isUsb = pt => pt.type==="usb" || pt.type==="usbc";
+const usbOf = pt => isUsb(pt) && USB[pt.usb] && !!USB[pt.usb].c === (pt.type==="usbc") ? USB[pt.usb] : null;
+function usbWarn(st,d,pt){ const uk = usbOf(pt); if (!uk || uk.mbps >= 5000) return null;
+  for (const c of st.conns){ const oid = c.from===d.id && c.fromPort===pt.id ? c.to : c.to===d.id && c.toPort===pt.id ? c.from : null, od = oid && st.devices.find(x=>x.id===oid);
+    if (od && od.type==="capture") return od.name+" is on a "+uk.speed+" port. Most USB capture cards need 5 Gbps: a blue, teal or red port, or a fast USB-C one."; }
+  return null; }
+function usbDefaults(st){ st.devices.forEach(d=>(d.groups||[]).forEach(g=>{ let i = 0; g.ports.forEach(pt=>{ if (pt.usb !== undefined) return;
+  pt.usb = pt.type==="usb" ? (["black","blue","red"][i++] || "blue") : pt.type==="usbc" ? "c10" : ""; }); })); }
+/* When a device grows or shrinks, everything below it moves by the same amount so nothing ends up underneath. */
+function resize(d,fn,st){ const before = nodeH(d), bottom = d.y+before; fn(); const delta = nodeH(d)-before;
+  if (!delta) return; const all = (st||cur()).devices, moved = all.filter(o=>o!==d && o.y >= bottom-4); if (!moved.length) return;
+  let by = delta;
+  if (delta < 0){ const floor = Math.max(d.y+nodeH(d), ...all.filter(o=>o!==d && !moved.includes(o)).map(o=>o.y+nodeH(o)))+40, top = Math.min(...moved.map(o=>o.y)); by = Math.min(0, Math.max(delta, Math.ceil((floor-top)/10)*10)); }
+  moved.forEach(o=>{ o.y += by; }); }
+function autoAssign(st,d){
+  const used = new Set(); st.conns.forEach(c=>{ if (c.from===d.id && c.fromPort) used.add(c.fromPort); if (c.to===d.id && c.toPort) used.add(c.toPort); });
+  const isIn = n => /\bin\b|mic/i.test(n); let n = 0;
+  for (const c of st.conns){ if (c.from!==d.id && c.to!==d.id) continue; const out = c.from===d.id, key = out?"fromPort":"toPort"; if (findPort(d,c[key])) continue;
+    let L = d.groups.flatMap(g=>g.ports).filter(p=>p.type===c.cable && !used.has(p.id));
+    if (["trs","rca","optical","hdmi","dp"].includes(c.cable)) L = L.filter(p=>out ? !isIn(p.name) : isIn(p.name));
+    if (L[0]){ c[key] = L[0].id; used.add(L[0].id); n++; } }
+  return n;
+}
+const CARDS = Object.keys(PRESETS).filter(k=>k!=="board");
+const SLOT_ICON = "M4 7h13v8H4z M17 9h3v4h-3 M7 15v3 M10 15v3 M13 15v3";
+function addCard(id,k){ const d = dev(id); if (!d) return; snap(); resize(d,()=>{ (d.groups = d.groups||[]).push(preset(k)); d.expanded = true; });
+  ui.sel = {kind:"node",id}; ui.tab = "details"; ui.pop = null; render(); save(); toast(PRESETS[k].name+" added inside "+d.name+". Rename it or edit its ports in Details."); }
+function addApp(name,what){ const st = cur(), s0 = ui.sel && ui.sel.kind==="node" && dev(ui.sel.id), pcs = st.devices.filter(isComp);
+  const host = s0 && isComp(s0) ? s0 : pcs.length===1 ? pcs[0] : null;
+  addDevice("app"); const d = dev(ui.sel.id); d.name = name==="Other app" ? "App" : name; d.note = what||""; d.host = host ? host.id : null; d.uses = []; d.dest = "";
+  if (host){ d.x = host.x; d.y = Math.max(0, host.y-110); while (st.devices.some(o=>o!==d && Math.abs(o.x-d.x)<nodeW(o)+10 && Math.abs(o.y-d.y)<nodeH(o)+10)) d.x += 200; }
+  render(); save(); toast(host ? d.name+" added on "+host.name+"." : d.name+" added. Choose the computer it runs on under Runs on."); }
+function addCardFromPalette(k){ const st = cur(), s0 = ui.sel && ui.sel.kind==="node" && dev(ui.sel.id), pcs = st.devices.filter(d=>d.type==="desktop");
+  const d = s0 && !isSource(s0) && !isSoft(s0) && (s0.type==="desktop" || hasPorts(s0)) ? s0 : pcs.length===1 ? pcs[0] : null;
+  if (d) return addCard(d.id,k);
+  toast(pcs.length ? "Click the Desktop PC that gets the card, then pick the card again." : "Add a Desktop PC first, then add cards to it."); }
+/* Streaming PCs: each activity can name the computer that runs the stream, and gear can plug into a different PC per activity. */
+const isComp = d => COMP.includes(d.type);
+const GEAR = ["mic","webcam","camera","streamdeck","capture","headphones","wheadset","mixer","vmixer","hub","videobar","confcam","speakerphone","micarray","wmic","confphone","doccam"];
+const gearDir = (c,g) => g.type==="capture" ? c.from===g.id : g.type==="headphones" ? c.to===g.id : true;
+function gearTarget(st,g,M){ for (const c of st.conns){ if (!connActive(c,M) || !gearDir(c,g)) continue; const oid = c.from===g.id ? c.to : c.to===g.id ? c.from : null, o = oid && st.devices.find(d=>d.id===oid); if (o && isComp(o)) return o.id; } return null; }
+function setGearTarget(st,g,M,target){
+  let found = false; const all = st.modes.map(m=>m.id);
+  for (const c of st.conns.slice()){ const oid = c.from===g.id ? c.to : c.to===g.id ? c.from : null, o = oid && st.devices.find(d=>d.id===oid); if (!o || !isComp(o) || !gearDir(c,g)) continue;
+    if (oid===target){ found = true; if (c.modes.length && !c.modes.includes(M)) c.modes.push(M); }
+    else if (connActive(c,M)){ c.modes = (c.modes.length ? c.modes : all).filter(x=>x!==M); if (!c.modes.length) st.conns = st.conns.filter(x=>x!==c); } }
+  const T = target && st.devices.find(d=>d.id===target);
+  if (T && !found){ const out = g.type==="headphones", a = out ? T : g, b = out ? g : T;
+    st.conns.push(Object.assign({id:uid(),from:a.id,to:b.id,dir:"one",modes:[M],fromPort:null,toPort:null}, guess(a,b))); if (hasPorts(T)) autoAssign(st,T); }
+}
+function streamUpgrade(st){
+  st.modes.forEach(m=>{ if (m.streamer === undefined) m.streamer = null; if (m.note === undefined) m.note = ""; });
+  const S = st.modes.find(m=>/stream/i.test(m.name||"")), D = st.devices.find(d=>d.type==="desktop"), L = st.devices.find(d=>d.type==="laptop");
+  if (!S || !D || !L || st.modes.some(m=>m.streamer)) return;
+  const touches = (c,d) => c.from===d.id || c.to===d.id, inS = st.conns.filter(c=>c.modes.includes(S.id));
+  if (!inS.some(c=>touches(c,L))){ S.streamer = D.id; return; }
+  S.streamer = L.id; if (/^streaming$/i.test(S.name)) S.name = "Streaming on "+L.name.replace(/^streaming\s+/i,""); if (!S.note) S.note = "GPU-heavy games";
+  const N = {id:uid(),name:"Streaming on "+D.name.replace(/^gaming\s+/i,""),streamer:D.id,note:"Most games"}; st.modes.splice(st.modes.indexOf(S),0,N);
+  const dev2 = id => st.devices.find(d=>d.id===id);
+  for (const c of inS){ const a = dev2(c.from), b = dev2(c.to); if (!a || !b) continue;
+    if (!touches(c,L) && a.type!=="capture" && b.type!=="capture"){ c.modes.push(N.id); continue; }
+    const g = touches(c,L) ? (a===L ? b : a) : null; if (g && ["mic","webcam","camera","streamdeck","headphones","mixer"].includes(g.type)) setGearTarget(st,g,N.id,D.id); }
+}
+function equip(st,d){ resize(d,()=>{ d.groups = [preset("board"),preset("gpu")]; d.expanded = true; },st); autoAssign(st,d); }
+const isSource = d => !!TYPES[d.type].source;
+
+function colourList(L){ L.forEach((d,i)=>{ d.color = PALETTE[i % PALETTE.length]; }); return L; }
+function exampleSetup(){
+  const D = (id,type,name,x,y,extra) => Object.assign({id,type,name,x,y,note:"",watts:TYPES[type].watts||0,plugs:TYPES[type].plugs||0,bulky:false,powerSource:null},
+    TYPES[type].source?{outlets:TYPES[type].outlets,maxW:TYPES[type].maxW}:{}, extra||{});
+  const C = (from,to,cable,signal,label,modes,audio,ports) => Object.assign({id:uid(),from,to,cable,signal,label,modes:modes||[],dir:"one",audio:audio==null?CABLES[cable].audio:audio,fromPort:null,toPort:null},ports||{});
+  return {id:uid(),name:"Example dual-PC setup",notes:"",view:null,
+    modes:[{id:"sd",name:"Streaming on Desktop",streamer:"pc",note:"Most games"},{id:"sl",name:"Streaming on Laptop",streamer:"lap",note:"GPU-heavy games"},{id:"yt",name:"YouTube & movies",streamer:null,note:""},{id:"ps5",name:"PS5",streamer:null,note:""}],
+    devices:colourList([
+      D("sonar","software","Audio mixer app",40,20,{host:"pc",mix:{personal:"hp",stream:null,mic:"mic",personalName:"",streamName:"",micName:""},
+        channels:[["Game",1,1],["Chat",1,1],["Media",1,0],["Aux",1,0],["Mic",0,1]].map(([name,p,s])=>({id:uid(),name,personal:!!p,stream:!!s,apps:""}))}),
+      D("mon","monitor","Main monitor",380,30,{powerSource:"strip"}),
+      D("mic","mic","Microphone",40,300),
+      D("pc","desktop","Gaming Desktop",380,230,{note:"Runs the game",powerSource:"strip",expanded:true,groups:[preset("board",true),preset("gpu",true)]}),
+      D("hp","headphones","Headphones",40,396,{note:"Worn while streaming"}),
+      D("sb","soundbar","Soundbar",40,520,{note:"YouTube, movies, PS5",powerSource:"strip"}),
+      D("ad","adapter","HDMI audio adapter",720,400,{note:"Splits out PS5 audio"}),
+      D("ps5","console","PS5",1060,400,{powerSource:"strip"}),
+      D("cap","capture","Capture card",720,500,{note:"USB capture"}),
+      D("lap","laptop","Streaming Laptop",1060,500,{note:"Runs the stream",powerSource:"strip"}),
+      D("deck","streamdeck","Stream Deck",1060,630),
+      D("strip","strip","Surge protector",380,660,{powerSource:"wall"}),
+      D("wall","wall","Wall outlet",720,660)
+    ]),
+    conns:[
+      C("mic","pc","usb","audio","Mic voice",["sd","sl"],true,{toPort:"board-0"}),
+      C("pc","hp","trs","audio","Game + chat",["sd","sl"],null,{fromPort:"board-4"}),
+      C("pc","mon","dp","video","Desktop picture",[],null,{fromPort:"gpu-1"}),
+      C("pc","cap","hdmi","video","Game feed",["sl"],null,{fromPort:"gpu-0"}),
+      C("cap","lap","usb","video","Capture feed",["sl"],true),
+      C("deck","lap","usb","data","Stream controls",["sl"]),
+      C("deck","pc","usb","data","Stream controls",["sd"],null,{toPort:"board-1"}),
+      C("pc","sb","trs","audio","Desktop sound",["yt","ps5"],null,{fromPort:"board-5"}),
+      C("ps5","ad","hdmi","video","PS5 out",["ps5"]),
+      C("ad","mon","hdmi","video","PS5 picture",["ps5"],false),
+      C("ad","pc","trs","audio","PS5 game audio",["ps5"],null,{toPort:"board-6"})
+    ]};
+}
+const KEY = "stream-setup-map-v1";
+let store = null;
+try { const raw = localStorage.getItem(KEY); if (raw) { const p = JSON.parse(raw); if (p && Array.isArray(p.setups) && p.setups.length) store = p; } } catch(e){}
+if (!store){ const first = {id:uid(),name:"My setup",notes:"",view:null,modes:[],devices:[],conns:[]}; store = {v:5,current:first.id,setups:[first]}; }
+function addExample(){ snap(); const ex = exampleSetup(); ex.name = "Example setup"; store.setups.push(ex); store.current = ex.id; ui.sel = null; ui.mode = null; fitSoon(); save(); }
+if ((store.v||1) < 2){ store.setups.forEach(st=>{ st.devices.forEach(d=>{ if (d.type==="desktop" && d.groups===undefined) equip(st,d); }); st.view = null; }); store.v = 2; }
+if (store.v < 3){ store.setups.forEach(usbDefaults); store.v = 3; }
+/* Audio apps moved from "channel goes to device" to the app's own layout: three mixes, and per channel whether it is in each mix. */
+function mixUpgrade(st){ st.devices.forEach(d=>{ if (d.type!=="software" || d.mix) return;
+  const old = d.channels||[], by = id => st.devices.find(x=>x.id===id), gg = /steelseries|sonar/i.test(d.name||"");
+  d.x = +d.x||0; d.y = +d.y||0;
+  const before = 58 + Math.max(1,old.length)*17 + 8, bottom = d.y+before;
+  d.mix = newMix();
+  const micCh = old.find(c=>by(c.to) && by(c.to).type==="mic"), outCh = old.find(c=>by(c.to) && by(c.to).type!=="mic");
+  if (micCh) d.mix.mic = micCh.to; if (outCh) d.mix.personal = outCh.to;
+  if (gg){ d.mix.personalName = "Speakers (Realtek)"; d.mix.streamName = "Speakers (Sound Blaster)"; d.mix.micName = "Microphone (Fifine)"; }
+  d.channels = old.map(c=>{ const nm = c.name||"", mic = /^mic/i.test(nm); return {id:c.id||uid(),name:nm,personal:!mic,stream:!(gg && /^(media|aux)/i.test(nm)),apps:""}; });
+  const delta = nodeH(d)-before; st.devices.forEach(o=>{ if (o!==d && o.y >= bottom-4) o.y += delta; }); }); }
+if (store.v < 4){ store.setups.forEach(mixUpgrade); store.v = 4; }
+store.setups.forEach(colourAll);
+const ui = {sel:null,tab:"details",mode:null,trace:null,layers:{video:true,audio:true,data:true,net:true,power:true,soft:true},labels:true,pop:null,find:"",open:new Set(["Computers"])};
+/* Which line types are shown is remembered with the saved data, so a reload or an app update does not hide them again. */
+if (store.prefs && store.prefs.layers){ for (const k in ui.layers) if (typeof store.prefs.layers[k]==="boolean") ui.layers[k] = store.prefs.layers[k]; ui.labels = store.prefs.labels !== false; }
+const undo = [];
+const cur = () => store.setups.find(x=>x.id===store.current) || store.setups[0];
+const dev = id => cur().devices.find(d=>d.id===id);
+let saveT = 0;
+function save(){ clearTimeout(saveT); saveT = setTimeout(()=>{ try{ store.prefs = {layers:ui.layers,labels:ui.labels}; localStorage.setItem(KEY, JSON.stringify(store)); }catch(e){} }, 250); }
+function snap(){ undo.push(JSON.stringify(store)); if (undo.length > 50) undo.shift(); $("#btnUndo").disabled = false; }
+function doUndo(){ if (!undo.length) return; store = JSON.parse(undo.pop()); ui.sel = null; ui.trace = null; if (ui.mode && !cur().modes.some(m=>m.id===ui.mode)) ui.mode = null; render(); save(); }
+
+/* ---------- power maths ---------- */
+function powerReport(st){
+  const by = id => st.devices.find(d=>d.id===id);
+  const kidsOf = id => st.devices.filter(d=>d.powerSource===id);
+  const loadOf = (d,seen) => { if (seen.has(d.id)) return 0; seen.add(d.id);
+    return isSource(d) ? kidsOf(d.id).reduce((a,k)=>a+loadOf(k,seen),0) : (+d.watts||0); };
+  const slots = d => isSource(d) ? 1 : (+d.plugs||0) + (d.bulky && d.plugs>0 ? 1 : 0);
+  const sources = st.devices.filter(isSource).map(d=>{
+    const kids = kidsOf(d.id), used = kids.reduce((a,k)=>a+slots(k),0), load = loadOf(d,new Set());
+    const outlets = +d.outlets||0, maxW = +d.maxW||0, msgs = [];
+    let status = "ok";
+    const up = d.powerSource && by(d.powerSource);
+    if (up && d.type !== "wall" && up.type !== "wall" && up.type !== "powerstation"){ status = "warn"; msgs.push(["warn", d.type==="extcord" ? "Plugged into "+up.name+", not the wall. Extension cords should run from a wall outlet, not from a strip, UPS or another cord." : up.type==="extcord" ? "Fed by an extension cord. Makers and fire codes say to plug strips and UPS units straight into the wall; keep the load well under the cord's rating." : "Plugged into another strip or UPS. Makers and fire codes say not to chain them. Plug this one straight into the wall."]); }
+    if (maxW && load > maxW*0.8 && load <= maxW){ status = "warn"; msgs.push(["warn","Above 80% of its rating. Fine for short peaks, but leave headroom for gear that runs for hours."]); }
+    if (used > outlets){ status = "bad"; msgs.push(["bad",(used-outlets)+" more plug"+(used-outlets>1?"s":"")+" than outlets. Move something to another strip or outlet."]); }
+    if (maxW && load > maxW){ status = "bad"; msgs.push(["bad","Over its "+fmt(maxW)+" W rating. Move high-draw gear to an outlet on a different circuit."]); }
+    return {d,kids,used,load,outlets,maxW,status,msgs,slots};
+  });
+  const unplugged = st.devices.filter(d=>!isSource(d) && !isSoft(d) && (+d.plugs||0)>0 && !by(d.powerSource));
+  const total = st.devices.filter(d=>!isSource(d)).reduce((a,d)=>a+(+d.watts||0),0);
+  const worst = sources.some(x=>x.status==="bad") ? "bad" : (sources.some(x=>x.status==="warn")||unplugged.length) ? "warn" : "ok";
+  return {sources,unplugged,total,worst};
+}
+
+/* ---------- signal tracing ---------- */
+const connActive = (c,mode) => !mode || !c.modes || !c.modes.length || c.modes.includes(mode);
+function audioNext(st,id,mode){
+  const out = [];
+  for (const c of st.conns){ if (!c.audio || !connActive(c,mode)) continue;
+    if (c.from===id) out.push([c,c.to]); else if (c.dir==="both" && c.to===id) out.push([c,c.from]); }
+  return out;
+}
+function traceFrom(st,id,mode){
+  const nodes = new Set([id]), edges = new Set(), q = [id];
+  while (q.length){ const n = q.shift(); for (const [c,to] of audioNext(st,n,mode)){ edges.add(c.id); if (!nodes.has(to)){ nodes.add(to); q.push(to); } } }
+  return {nodes,edges};
+}
+function audioPaths(st,mode){
+  const act = st.conns.filter(c=>c.audio && connActive(c,mode));
+  const hasIn = id => act.some(c=>c.to===id || (c.dir==="both" && c.from===id));
+  const starts = st.devices.filter(d=>act.some(c=>c.from===d.id) && !hasIn(d.id));
+  const paths = [];
+  const walk = (id,trail,seen) => { const nx = audioNext(st,id,mode).filter(([c,to])=>!seen.has(to));
+    if (!nx.length){ if (trail.length>1) paths.push(trail); return; }
+    for (const [c,to] of nx){ if (paths.length >= 14) return; walk(to, trail.concat([[c,to]]), new Set(seen).add(to)); } };
+  for (const d of starts) walk(d.id, [[null,d.id]], new Set([d.id]));
+  return paths;
+}
+
+/* ---------- diagram drawing (shared by screen and export) ---------- */
+function rectOf(d){ const H = nodeH(d), W = nodeW(d); return {l:d.x,t:d.y,r:d.x+W,b:d.y+H,cx:d.x+W/2,cy:d.y+H/2,w:W,h:H}; }
+function markers(defs){
+  for (const k of ["video","audio","data","net","soft"]) defs.append(s("marker",{id:"arr-"+k,viewBox:"0 0 10 10",refX:"9",refY:"5",markerWidth:"9",markerHeight:"9",markerUnits:"userSpaceOnUse",orient:"auto-start-reverse"}, s("path",{d:"M0 0.5 L10 5 L0 9.5 z",class:"mk-"+k})));
+}
+/* Cables run in right-angle steps. Each one tries the few simple shapes and keeps the one that crosses the fewest devices. */
+function routePts(r,A,B,pa,pb,m){
+  if (r.k==="X") return [[A.cx,A.cy],[B.cx,B.cy]];
+  const ax = r.sa==="r"?A.r:r.sa==="l"?A.l:pa, ay = r.sa==="b"?A.b:r.sa==="t"?A.t:pa;
+  const bx = r.sb==="r"?B.r:r.sb==="l"?B.l:pb, by = r.sb==="b"?B.b:r.sb==="t"?B.t:pb;
+  if (r.k==="HVH") return [[ax,ay],[m,ay],[m,by],[bx,by]];
+  if (r.k==="VHV") return [[ax,ay],[ax,m],[bx,m],[bx,by]];
+  if (r.k==="HV") return [[ax,ay],[bx,ay],[bx,by]];
+  return [[ax,ay],[ax,by],[bx,by]];
+}
+function simplify(pts){
+  const a = []; for (const p of pts){ const q = a[a.length-1]; if (!q || Math.hypot(p[0]-q[0],p[1]-q[1]) > .6) a.push(p); }
+  for (let i=a.length-2;i>0;i--){ const p=a[i-1],q=a[i],r=a[i+1]; if ((Math.abs(p[0]-q[0])<.6&&Math.abs(q[0]-r[0])<.6)||(Math.abs(p[1]-q[1])<.6&&Math.abs(q[1]-r[1])<.6)) a.splice(i,1); }
+  return a;
+}
+const horiz = sd => sd==="l"||sd==="r";
+function pickRoute(A,B,obst,ya,yb){
+  const G = 14, c = [], fa = ya!=null, fb = yb!=null, ay = fa?ya:A.cy, by = fb?yb:B.cy;
+  if (A.r+G<=B.l) c.push({k:"HVH",sa:"r",sb:"l",m:(A.r+B.l)/2,gap:B.l-A.r});
+  if (B.r+G<=A.l) c.push({k:"HVH",sa:"l",sb:"r",m:(B.r+A.l)/2,gap:A.l-B.r});
+  if (!fa && !fb){
+    if (A.b+G<=B.t) c.push({k:"VHV",sa:"b",sb:"t",m:(A.b+B.t)/2,gap:B.t-A.b});
+    if (B.b+G<=A.t) c.push({k:"VHV",sa:"t",sb:"b",m:(B.b+A.t)/2,gap:A.t-B.b}); }
+  const hs = B.cx>A.r+G?"r":B.cx<A.l-G?"l":null, vb = ay<B.t-G?"t":ay>B.b+G?"b":null;
+  if (hs&&vb&&!fb) c.push({k:"HV",sa:hs,sb:vb});
+  const vs = by>A.b+G?"b":by<A.t-G?"t":null, hb = A.cx<B.l-G?"l":A.cx>B.r+G?"r":null;
+  if (vs&&hb&&!fa) c.push({k:"VH",sa:vs,sb:hb});
+  for (const r of c.slice()) if (r.gap > 90){ const lo = r.m-r.gap/2+24, hi = r.m+r.gap/2-24; c.push(Object.assign({},r,{m:lo}), Object.assign({},r,{m:hi})); }
+  c.push({k:"HVH",sa:"l",sb:"l",m:Math.min(A.l,B.l)-28,gap:999,c:true,pen:70},{k:"HVH",sa:"r",sb:"r",m:Math.max(A.r,B.r)+28,gap:999,c:true,pen:74});
+  let best = {k:"X"}, bs = Infinity;
+  for (const r of c){
+    const pts = simplify(routePts(r,A,B,horiz(r.sa)?ay:A.cx,horiz(r.sb)?by:B.cx,r.m)); let sc = (pts.length-2)*40+(r.pen||0);
+    for (let i=1;i<pts.length;i++){ const p=pts[i-1],q=pts[i]; sc += Math.abs(p[0]-q[0])+Math.abs(p[1]-q[1]);
+      const x0=Math.min(p[0],q[0]),x1=Math.max(p[0],q[0]),y0=Math.min(p[1],q[1]),y1=Math.max(p[1],q[1]);
+      for (const R of obst) if (x1>R.l-8&&x0<R.r+8&&y1>R.t-8&&y0<R.b+8) sc += 2500; }
+    if (sc < bs){ bs = sc; best = r; }
+  }
+  return best;
+}
+function roundPath(pts){
+  const f = v => v.toFixed(1); let d = `M${f(pts[0][0])} ${f(pts[0][1])}`;
+  for (let i=1;i<pts.length-1;i++){ const a=pts[i-1],p=pts[i],b=pts[i+1], la=Math.hypot(a[0]-p[0],a[1]-p[1]), lb=Math.hypot(b[0]-p[0],b[1]-p[1]), r=Math.min(9,la/2,lb/2);
+    d += ` L${f(p[0]+(a[0]-p[0])/la*r)} ${f(p[1]+(a[1]-p[1])/la*r)} Q${f(p[0])} ${f(p[1])} ${f(p[0]+(b[0]-p[0])/lb*r)} ${f(p[1]+(b[1]-p[1])/lb*r)}`; }
+  const z = pts[pts.length-1]; return d + ` L${f(z[0])} ${f(z[1])}`;
+}
+/* Fallback router: when every simple shape would cut through a device, find a path around them on a grid of lanes that hug the devices. */
+function hitsAny(pts, rects, pad){ for (let i=1;i<pts.length;i++){ const p=pts[i-1],q=pts[i], x0=Math.min(p[0],q[0]),x1=Math.max(p[0],q[0]),y0=Math.min(p[1],q[1]),y1=Math.max(p[1],q[1]);
+  for (const R of rects) if (x1>R.l-pad&&x0<R.r+pad&&y1>R.t-pad&&y0<R.b+pad) return true; } return false; }
+function autoRoute(A,B,ya,yb,all){
+  const PAD = 9, ST = 16, BEND = 40, blocks = all.map(R=>({l:R.l-PAD,r:R.r+PAD,t:R.t-PAD,b:R.b+PAD}));
+  const inside = (x,y) => blocks.some(R=>x>R.l&&x<R.r&&y>R.t&&y<R.b);
+  const ends = (R,fy) => { const out = [], add = (px,py,dx,dy) => { const sx = px+dx*ST, sy = py+dy*ST; if (!inside(sx,sy)) out.push({p:[px,py],s:[sx,sy],d:dx?0:1}); };
+    const y = fy!=null ? fy : R.cy; add(R.r,y,1,0); add(R.l,y,-1,0); if (fy==null){ add(R.cx,R.t,0,-1); add(R.cx,R.b,0,1); } return out; };
+  const SA = ends(A,ya), SB = ends(B,yb); if (!SA.length || !SB.length) return null;
+  const uniq = L => [...new Set(L.map(v=>Math.round(v*2)/2))].sort((a,b)=>a-b);
+  const xs = uniq(all.flatMap(R=>[R.l-ST,R.r+ST]).concat(SA.map(e=>e.s[0]),SB.map(e=>e.s[0])));
+  const ys = uniq(all.flatMap(R=>[R.t-ST,R.b+ST]).concat(SA.map(e=>e.s[1]),SB.map(e=>e.s[1])));
+  const NX = xs.length, NY = ys.length; if (NX*NY > 60000) return null;
+  const ix = v => xs.indexOf(Math.round(v*2)/2), iy = v => ys.indexOf(Math.round(v*2)/2);
+  const blocked = (x0,y0,x1,y1) => { const a=Math.min(x0,x1),b=Math.max(x0,x1),c=Math.min(y0,y1),d=Math.max(y0,y1); for (const R of blocks) if (b>R.l&&a<R.r&&d>R.t&&c<R.b) return true; return false; };
+  const G = new Float64Array(NX*NY*2).fill(Infinity), P = new Int32Array(NX*NY*2).fill(-1), SRC = new Int8Array(NX*NY*2).fill(-1);
+  const goal = new Map(); SB.forEach((e,i)=>{ const k = ix(e.s[0])*NY+iy(e.s[1]); if (!goal.has(k)) goal.set(k,[]); goal.get(k).push(i); });
+  const hOf = (x,y) => { let m = Infinity; for (const e of SB){ const v = Math.abs(e.s[0]-x)+Math.abs(e.s[1]-y); if (v<m) m = v; } return m; };
+  const heap = [], push = (f,k) => { heap.push([f,k]); let i = heap.length-1; while (i>0){ const p = (i-1)>>1; if (heap[p][0]<=heap[i][0]) break; [heap[p],heap[i]] = [heap[i],heap[p]]; i = p; } };
+  const pop = () => { const top = heap[0], last = heap.pop(); if (heap.length){ heap[0] = last; let i = 0; for(;;){ let l = i*2+1, r = l+1, m = i; if (l<heap.length&&heap[l][0]<heap[m][0]) m = l; if (r<heap.length&&heap[r][0]<heap[m][0]) m = r; if (m===i) break; [heap[m],heap[i]] = [heap[i],heap[m]]; i = m; } } return top; };
+  SA.forEach((e,i)=>{ const k = (ix(e.s[0])*NY+iy(e.s[1]))*2+e.d; if (ST < G[k]){ G[k] = ST; SRC[k] = i; push(ST+hOf(e.s[0],e.s[1]),k); } });
+  let endK = -1, endI = -1, guard = 0;
+  while (heap.length && guard++ < 200000){ const [f,k] = pop(), d = k&1, cell = k>>1, cx = (cell/NY)|0, cy = cell%NY, g = G[k]; if (f > g+hOf(xs[cx],ys[cy])+1e-6) continue;
+    if (goal.has(cell)){ endK = k; endI = goal.get(cell).sort((a,b)=>(SB[a].d!==d)-(SB[b].d!==d))[0]; break; }
+    for (const [dx,dy,nd] of [[1,0,0],[-1,0,0],[0,1,1],[0,-1,1]]){ const nx = cx+dx, ny = cy+dy; if (nx<0||ny<0||nx>=NX||ny>=NY) continue;
+      if (blocked(xs[cx],ys[cy],xs[nx],ys[ny])) continue; const ng = g+Math.abs(xs[nx]-xs[cx])+Math.abs(ys[ny]-ys[cy])+(nd!==d?BEND:0), nk = (nx*NY+ny)*2+nd;
+      if (ng < G[nk]-1e-6){ G[nk] = ng; P[nk] = k; SRC[nk] = SRC[k]; push(ng+hOf(xs[nx],ys[ny]),nk); } } }
+  if (endK < 0) return null;
+  const mid = []; for (let k = endK; k >= 0; k = P[k]){ const cell = k>>1; mid.push([xs[(cell/NY)|0],ys[cell%NY]]); }
+  const a = SA[SRC[endK]], b = SB[endI]; return simplify([a.p,a.s].concat(mid.reverse(),[b.s,b.p]));
+}
+function layoutEdges(edges, rects, ids){
+  for (const e of edges){ e.A = rects[e.from]; e.B = rects[e.to]; e.r = pickRoute(e.A,e.B,ids.filter(i=>i!==e.from&&i!==e.to).map(i=>rects[i]),e.ya,e.yb); e.m = e.r.m; }
+  const sides = {};
+  for (const e of edges){ if (e.r.k==="X") continue;
+    for (const end of ["a","b"]){ const fy = end==="a"?e.ya:e.yb; if (fy!=null){ e["p"+end] = fy; e["n"+end] = 99; continue; }
+      const me = end==="a"?e.A:e.B, far = end==="a"?e.B:e.A, sd = end==="a"?e.r.sa:e.r.sb, hz = horiz(sd), key = (end==="a"?e.from:e.to)+"|"+sd;
+      (sides[key] = sides[key]||[]).push({e,end,me,hz,sort:hz?far.cy:far.cx}); } }
+  for (const k in sides){ const L = sides[k].sort((x,y)=>x.sort-y.sort), n = L.length;
+    L.forEach((p,i)=>{ const len = p.hz?p.me.h:p.me.w, step = n>1?Math.min(18,(len-30)/(n-1)):0; p.e["p"+p.end] = (p.hz?p.me.cy:p.me.cx)+(i-(n-1)/2)*step; p.e["n"+p.end] = n; }); }
+  for (const e of edges){ const k = e.r.k; if ((k!=="HVH"&&k!=="VHV") || e.r.c || Math.abs(e.pa-e.pb) > 26) continue;
+    const lo = (k==="HVH"?Math.max(e.A.t,e.B.t):Math.max(e.A.l,e.B.l))+10, hi = (k==="HVH"?Math.min(e.A.b,e.B.b):Math.min(e.A.r,e.B.r))-10, ok = v => v>=lo && v<=hi;
+    if (e.na===1 && e.nb===1){ const v = (e.pa+e.pb)/2; if (ok(v)) e.pa = e.pb = v; }
+    else if (e.na===1 && ok(e.pb)) e.pa = e.pb; else if (e.nb===1 && ok(e.pa)) e.pb = e.pa; }
+  const lanes = {};
+  for (const e of edges) if ((e.r.k==="HVH"||e.r.k==="VHV") && Math.abs(e.pa-e.pb) > .6){ const key = e.r.k+Math.round(e.r.m/30); (lanes[key] = lanes[key]||[]).push(e); }
+  for (const k in lanes){ const L = lanes[k], n = L.length; if (n < 2) continue;
+    const step = Math.max(4, Math.min(12,(Math.min(...L.map(e=>e.r.gap))-24)/n)), key = e => Math.abs(e.pa-e.pb)*(e.r.sb==="r"||e.r.sb==="b"?1:-1);
+    L.sort((x,y)=>key(x)-key(y)).forEach((e,i)=>{ e.m = e.r.m+(i-(n-1)/2)*step; }); }
+  const allR = ids.map(i=>rects[i]);
+  for (const e of edges){ e.pts = simplify(routePts(e.r,e.A,e.B,e.pa,e.pb,e.m));
+    if (e.r.k==="X" || hitsAny(e.pts, ids.filter(i=>i!==e.from&&i!==e.to).map(i=>rects[i]), 3)){ const alt = autoRoute(e.A,e.B,e.ya,e.yb,allR); if (alt) e.pts = alt; } }
+}
+function placeLabel(pts, full, short, placed, rects){
+  const segs = []; for (let i=1;i<pts.length;i++){ const p=pts[i-1],q=pts[i]; segs.push({p,q,len:Math.hypot(p[0]-q[0],p[1]-q[1]),hz:Math.abs(p[1]-q[1])<1}); }
+  const wOf = t => t.length*6.3+14, byLen = L => L.sort((a,b)=>b.len-a.len), opts = [], wf = wOf(full), ws = wOf(short);
+  byLen(segs.filter(x=>x.hz && x.len>=wf+18)).forEach(sg=>opts.push([full,wf,sg]));
+  if (wf<=170) byLen(segs.filter(x=>!x.hz && x.len>=30)).forEach(sg=>opts.push([full,wf,sg]));
+  byLen(segs.filter(x=>x.hz ? x.len>=ws+14 : x.len>=30)).forEach(sg=>opts.push([short,ws,sg]));
+  if (!opts.length) return null;
+  const bad = (x,y,w) => placed.some(r=>Math.abs(r.x-x)<(r.w+w)/2+3 && Math.abs(r.y-y)<21) || rects.some(R=>x+w/2>R.l-3 && x-w/2<R.r+3 && y+9>R.t-3 && y-9<R.b+3);
+  for (const [text,w,sg] of opts) for (const t of [.5,.35,.65,.2,.8]){ const x = sg.p[0]+(sg.q[0]-sg.p[0])*t, y = sg.p[1]+(sg.q[1]-sg.p[1])*t;
+    if (!bad(x,y,w)){ placed.push({x,y,w}); return {x,y,w,text}; } }
+  const [text,w,sg] = opts[opts.length-1], x = (sg.p[0]+sg.q[0])/2, y = (sg.p[1]+sg.q[1])/2; placed.push({x,y,w}); return {x,y,w,text};
+}
+let lastPts = {};
+function buildDiagram(g, st, o){
+  const rep = powerReport(st), byId = id => st.devices.find(d=>d.id===id);
+  const tr = o.trace && byId(o.trace) ? traceFrom(st,o.trace,o.mode) : null;
+  const edges = [];
+  for (const c of st.conns){ if (!o.layers[c.signal] || !byId(c.from) || !byId(c.to)) continue; const fa = byId(c.from), fb = byId(c.to), y1 = portY(fa,c.fromPort), y2 = portY(fb,c.toPort);
+    edges.push({id:c.id,from:c.from,to:c.to,signal:c.signal,conn:c,ya:y1==null?null:fa.y+y1*sc(fa),yb:y2==null?null:fb.y+y2*sc(fb)}); }
+  const usedPorts = new Set(); st.conns.forEach(c=>{ if (c.fromPort) usedPorts.add(c.from+"|"+c.fromPort); if (c.toPort) usedPorts.add(c.to+"|"+c.toPort); });
+  if (o.layers.power) for (const d of st.devices){ if (d.powerSource && byId(d.powerSource) && !isSoft(d)) edges.push({id:"pw:"+d.id,from:d.powerSource,to:d.id,signal:"power"}); }
+  if (o.layers.soft) for (const d of st.devices){ if (!isSoft(d)) continue;
+    if (d.type==="app") for (const u of d.uses||[]){ if (byId(u) && u!==d.id) edges.push({id:"sw:"+d.id+"~u"+u,from:u,to:d.id,signal:"soft",text:"source"}); }
+    if (byId(d.host)) edges.push({id:"sw:"+d.id,from:d.host,to:d.id,signal:"soft"});
+    for (const [k,full] of MIXES){ const t = d.mix && byId(d.mix[k]); if (t && t.id!==d.id) edges.push(k==="mic" ? {id:"sw:"+d.id+"~"+k,from:t.id,to:d.id,signal:"soft",text:full} : {id:"sw:"+d.id+"~"+k,from:d.id,to:t.id,signal:"soft",text:full}); } }
+  if (o.preview && byId(o.preview.from) && byId(o.preview.to)) { const fa = byId(o.preview.from), fb = byId(o.preview.to), y1 = portY(fa,o.preview.fromPort), y2 = portY(fb,o.preview.toPort);
+    edges.push({id:"__preview",from:fa.id,to:fb.id,signal:o.preview.signal,preview:true,ya:y1==null?null:fa.y+y1*sc(fa),yb:y2==null?null:fb.y+y2*sc(fb)}); }
+  const rects = {}; st.devices.forEach(d=>rects[d.id] = rectOf(d));
+  layoutEdges(edges, rects, st.devices.map(d=>d.id));
+  if (o.interactive){ lastPts = {}; edges.forEach(e=>lastPts[e.id] = e.pts); }
+  let focus = null;
+  if (!tr && o.sel){ const fe = edges.filter(e=>!e.preview && (o.sel.kind==="conn" ? e.id===o.sel.id : (e.from===o.sel.id || e.to===o.sel.id)));
+    if (o.sel.kind==="node" ? byId(o.sel.id) : fe.length){ focus = {edges:new Set(fe.map(e=>e.id)),nodes:new Set(o.sel.kind==="node"?[o.sel.id]:[])}; fe.forEach(e=>{ focus.nodes.add(e.from); focus.nodes.add(e.to); }); } }
+  const eg = s("g",{}), ng = s("g",{}), lg = s("g",{}), placed = [];
+  for (const e of edges){ const c = e.conn; e.dim = false; e.hot = false;
+    if (c && !connActive(c,o.mode)) e.dim = true;
+    if (tr){ if (c && tr.edges.has(c.id)) e.hot = true; else e.dim = true; }
+    if (focus && !e.preview){ if (focus.edges.has(e.id)) e.hot = !e.dim; else e.dim = true; }
+    if (o.hide === e.id) e.dim = true;
+    e.sel = !!(c && o.sel && o.sel.kind==="conn" && o.sel.id===c.id);
+    e.rank = e.dim ? 0 : e.preview ? 4 : e.sel ? 3 : e.hot ? 2 : 1; }
+  edges.sort((a,b)=>a.rank-b.rank);
+  for (const e of edges){
+    const c = e.conn, path = roundPath(e.pts);
+    const grp = s("g",{class:"edge sig-"+e.signal+(e.dim?" dim":"")+(e.hot?" hot":"")+(e.sel?" sel":"")+(e.preview?" preview":""),"data-edge":e.id});
+    const line = s("path",{class:"line",d:path,"stroke-dasharray":e.preview?null:(SIGNALS[e.signal].dash||null)});
+    if (c || e.text || (e.preview && e.signal!=="power" && e.signal!=="soft")){ line.setAttribute("marker-end","url(#arr-"+e.signal+")"); if (c && c.dir==="both") line.setAttribute("marker-start","url(#arr-"+e.signal+")"); }
+    grp.append(s("path",{class:"case",d:path}), line);
+    if (o.interactive && !e.preview) grp.append(s("path",{class:"hit",d:path}));
+    if (c){ const A = byId(c.from), B = byId(c.to), full = CABLES[c.cable].label+(c.label?" · "+c.label:"");
+      grp.append(s("title",{text:full+" ("+A.name+(c.dir==="both"?" ↔ ":" → ")+B.name+")"}));
+      if (o.labels !== false && !e.dim){ const L = placeLabel(e.pts, cut(full,34), CABLES[c.cable].label, placed, Object.values(rects));
+        if (L) lg.append(s("g",{class:"elab sig-"+e.signal,"data-edge":e.id}, s("rect",{x:(L.x-L.w/2).toFixed(1),y:(L.y-9).toFixed(1),width:L.w.toFixed(1),height:18,rx:5}), s("text",{x:L.x.toFixed(1),y:(L.y+4).toFixed(1),"text-anchor":"middle",text:L.text}))); }
+      if (o.interactive && e.sel && !o.linking){ const a = e.pts[0], z = e.pts[e.pts.length-1];
+        lg.append(s("circle",{class:"grip","data-grip":"from","data-conn":c.id,cx:a[0],cy:a[1],r:7.5}, s("title",{text:"Drag to move this end to another device"})),
+                  s("circle",{class:"grip","data-grip":"to","data-conn":c.id,cx:z[0],cy:z[1],r:7.5}, s("title",{text:"Drag to move this end to another device"}))); } }
+    if (e.text && !e.dim && o.labels !== false){ const L = placeLabel(e.pts, e.text, e.text, placed, Object.values(rects));
+      if (L) lg.append(s("g",{class:"elab sig-soft","data-edge":e.id}, s("rect",{x:(L.x-L.w/2).toFixed(1),y:(L.y-9).toFixed(1),width:L.w.toFixed(1),height:18,rx:5}), s("text",{x:L.x.toFixed(1),y:(L.y+4).toFixed(1),"text-anchor":"middle",text:L.text}))); }
+    eg.append(grp);
+  }
+  const active = id => st.conns.some(c=>(c.from===id||c.to===id) && connActive(c,o.mode));
+  const any = id => st.conns.some(c=>c.from===id||c.to===id);
+  for (const d of st.devices){
+    const T = TYPES[d.type], H = baseH(d), src = isSource(d);
+    let dim = false;
+    if (tr) dim = !tr.nodes.has(d.id);
+    else if (o.mode && !src && !isSoft(d) && any(d.id) && !active(d.id)) dim = true;
+    const sel = o.sel && o.sel.kind==="node" && o.sel.id===d.id, cand = o.cands && o.cands.has(d.id), drop = o.drop === d.id;
+    if (focus && !focus.nodes.has(d.id)) dim = true;
+    const liveM = o.mode && st.modes.find(m=>m.id===o.mode), live = !!(liveM && liveM.streamer===d.id), spc = !o.mode && st.modes.some(m=>m.streamer===d.id);
+    if (live && !tr && !focus) dim = false;
+    if (cand || drop) dim = false;
+    const n = s("g",{class:"node"+(src?" src":"")+(isSoft(d)?" soft":"")+(sel?" sel":"")+(dim?" dim":"")+(cand?" cand":"")+(drop?" drop":""),transform:`translate(${d.x} ${d.y}) scale(${sc(d)})`,"data-node":d.id});
+    if (o.interactive){ n.setAttribute("tabindex","0"); n.setAttribute("role","button"); n.setAttribute("aria-label",d.name+", "+T.label); }
+    const col = colourOf(d);
+    if (sel) n.append(s("rect",{class:"sel-ring",x:-6,y:-6,width:NODE_W+12,height:H+12,rx:15}));
+    n.append(s("rect",{class:"node-box",width:NODE_W,height:H,rx:10,style:"stroke:"+col}));
+    n.append(s("path",{class:"n-tint",d:`M1 52V10a9 9 0 0 1 9-9H${NODE_W-10}a9 9 0 0 1 9 9V52z`,style:"fill:"+col}));
+    n.append(s("rect",{x:9,y:9,width:34,height:34,rx:8,style:"fill:"+col}));
+    n.append(s("path",{class:"n-icon",d:T.icon,transform:"translate(11 11) scale(1.25)",style:"stroke:#fff"}));
+    const exp = !!d.expanded && hasPorts(d) && !isSoft(d);
+    n.append(s("text",{class:"n-name",x:50,y:26,text:cut(d.name||T.label,19)}));
+    let sub = d.note || T.label;
+    if (isSoft(d)){ const hst = byId(d.host); sub = hst ? "on "+hst.name : (d.type==="app" ? (d.note||"App") : "Audio app"); }
+    n.append(s("text",{class:"n-sub",x:50,y:42,text:cut(sub,24)}));
+    n.append(s("line",{class:"n-div",x1:10,x2:NODE_W-10,y1:52,y2:52}));
+    if (d.type==="software"){
+      const ch = d.channels||[], mx = d.mix||{};
+      MIXES.forEach(([k,full,short,arrow],i)=>{ const t = byId(mx[k]), v = t ? t.name : (mx[k+"Name"]||"not set");
+        n.append(s("text",{class:"n-foot",x:12,y:69+i*17}, s("tspan",{class:"n-mixk",text:short}), arrow+cut(v,30-short.length-3), s("title",{text:full+": "+(t?t.name:"no device linked")+(mx[k+"Name"]?" · Windows device: "+mx[k+"Name"]:"")})));
+      });
+      n.append(s("line",{class:"n-div",x1:10,x2:NODE_W-10,y1:112,y2:112}), s("text",{class:"n-col",x:12,y:127,text:"CHANNEL"}), s("text",{class:"n-col",x:NODE_W-78,y:127,"text-anchor":"middle",text:"PERSONAL"}), s("text",{class:"n-col",x:NODE_W-26,y:127,"text-anchor":"middle",text:"STREAM"}));
+      if (!ch.length) n.append(s("text",{class:"n-foot",x:12,y:146,text:"No channels yet"}));
+      ch.forEach((c,i)=>{ const y = 146+i*17;
+        n.append(s("text",{class:"n-foot",x:12,y,text:cut(c.name||"Channel",14)}, c.apps ? s("title",{text:"Apps: "+c.apps}) : null),
+          s("circle",{class:"mdot"+(c.personal?" on":""),cx:NODE_W-78,cy:y-4,r:4.5}, s("title",{text:(c.name||"Channel")+(c.personal?" is in":" is not in")+" the personal mix"})),
+          s("circle",{class:"mdot"+(c.stream?" on":""),cx:NODE_W-26,cy:y-4,r:4.5}, s("title",{text:(c.name||"Channel")+(c.stream?" is in":" is not in")+" the stream mix"}))); });
+    } else {
+      let foot, cls = "";
+      if (src){ const r = rep.sources.find(x=>x.d.id===d.id); foot = `${r.used}/${r.outlets} outlets · ${fmt(r.load)} of ${fmt(r.maxW)} W`; cls = r.status==="ok" ? "" : " "+r.status; }
+      else if ((+d.plugs||0) > 0){ const ps = byId(d.powerSource); foot = `${fmt(d.watts||0)} W · ${ps?ps.name:"not plugged in"}`; if (!ps) cls = " warn"; }
+      else if (d.type==="app") foot = d.dest ? "Sends to "+d.dest : (d.note||"Software");
+      else foot = "No wall plug";
+      n.append(s("text",{class:"n-foot"+cls,x:12,y:68,text:cut(foot,31)}));
+    }
+    if (o.interactive && hasPorts(d) && !isSoft(d)) n.append(s("g",{class:"toggle","data-toggle":d.id,transform:`translate(${NODE_W-30} 55)`}, s("title",{text:exp?"Hide ports and cards":"Show ports and cards"}), s("rect",{width:22,height:19,rx:6}), s("path",{d:exp?"M6 7.5l5 5 5-5":"M9 4.5l5 5-5 5"})));
+    if (exp){ let y = PTOP;
+      for (const [gi,gp] of d.groups.entries()){ n.append(s("rect",{class:"g-band",x:1,y,width:NODE_W-2,height:GH}), s("text",{class:"n-ghead",x:14,y:y+14,text:cut(gp.name||"Card",18).toUpperCase()}));
+        if (o.interactive && gi===0) n.append(s("g",{class:"toggle","data-addcard":d.id,transform:`translate(${NODE_W-60} ${y+2.5})`}, s("title",{text:"Add an internal card"}), s("rect",{width:52,height:15,rx:7}), s("text",{class:"n-col",x:26,y:11,"text-anchor":"middle",text:"+ CARD"})));
+        else if (gi>0) n.append(s("text",{class:"n-col",x:NODE_W-12,y:y+13,"text-anchor":"end",text:"CARD"}));
+        y += GH;
+        for (const pt of gp.ports){ const cb = CABLES[pt.type]||CABLES.other, used = usedPorts.has(d.id+"|"+pt.id), cy = y+ROW/2, nm = pt.name||"Port";
+          const uk = usbOf(pt), warn = usbWarn(st,d,pt), tag = uk ? uk.short : cb.label, x0 = isUsb(pt) ? 28 : 14;
+          n.append(s("rect",{class:"p-row"+(drop&&o.dropPort===pt.id?" drop":""),x:1,y,width:NODE_W-2,height:ROW}, uk ? s("title",{text:`${nm}: ${uk.label}. ${uk.speed}; power ${uk.power}. ${uk.note}`}) : null));
+          if (isUsb(pt)) n.append(s("rect",{class:"usb-sw"+(uk?"":" unset"),x:12,y:y+5,width:11,height:8,rx:pt.type==="usbc"?4:1.5,fill:uk?uk.color:"none"}));
+          n.append(s("text",{class:"n-port",x:x0,y:y+13,text:cut(nm,x0>14?21:24)}));
+          if (uk ? nm.length+tag.length <= 21 : (nm.length+tag.length <= 22 && !nm.toLowerCase().includes(tag.toLowerCase().split(" ")[0]))) n.append(s("text",{class:"n-ptag"+(warn?" warn":""),x:NODE_W-14,y:y+13,"text-anchor":"end",text:(warn?"! ":"")+tag}));
+          for (const hx of [0,NODE_W]){ const dot = s("circle",{class:"pdot pd-"+cb.signal+(used?" used":""),cx:hx,cy,r:4.5});
+            if (o.interactive && !o.linking) n.append(s("g",{class:"phandle","data-handle":d.id,"data-hx":hx,"data-hy":cy,"data-port":pt.id}, s("title",{text:"Drag from "+nm+" to another device"}), s("circle",{class:"hitc",cx:hx,cy,r:9}), dot)); else n.append(dot); }
+          y += ROW; } } }
+    if (live || spc) n.append(s("g",{class:live?"live":"spc",transform:`translate(${NODE_W-(live?58:96)} -11)`}, s("title",{text:live?"Runs the stream in this activity":"Runs the stream in: "+st.modes.filter(m=>m.streamer===d.id).map(m=>m.name).join(", ")}),
+      s("rect",{width:live?50:88,height:19,rx:9.5}), s("circle",{cx:11,cy:9.5,r:3.5}), s("text",{x:19,y:13.5,text:live?"LIVE":"STREAM PC"})));
+    if (o.interactive && sel && !o.linking) n.append(s("rect",{class:"rz","data-resize":d.id,x:NODE_W-6,y:H-6,width:13,height:13,rx:3}, s("title",{text:"Drag to make this device bigger or smaller"})));
+    if (o.interactive && !o.linking) for (const [hx,hy] of (exp ? [[NODE_W/2,0],[NODE_W/2,H]] : [[NODE_W/2,0],[NODE_W,H/2],[NODE_W/2,H],[0,H/2]]))
+      n.append(s("g",{class:"handle","data-handle":d.id,"data-hx":hx,"data-hy":hy,transform:`translate(${hx} ${hy})`}, s("title",{text:"Drag onto another device to run a cable"}), s("circle",{class:"hitc",r:14}), s("circle",{class:"dot",r:7.5}), s("path",{d:"M-3.5 0h7 M0 -3.5v7"})));
+    ng.append(n);
+  }
+  g.append(eg, ng, lg);
+}
+
+/* ---------- screen rendering ---------- */
+const svg = $("#canvas"), world = $("#world");
+function view(){ const st = cur(); if (!st.view) st.view = {x:20,y:20,k:1}; return st.view; }
+function drawCanvas(){
+  const st = cur(), v = view();
+  world.replaceChildren();
+  const o = {mode:ui.mode,trace:ui.trace,sel:ui.sel,layers:ui.layers,labels:ui.labels,interactive:true};
+  dragOpts(o); buildDiagram(world, st, o); dragRubber();
+  world.setAttribute("transform",`translate(${v.x} ${v.y}) scale(${v.k})`);
+  $("#grid").setAttribute("patternTransform",`translate(${v.x} ${v.y}) scale(${v.k})`);
+  $("#emptyMsg").hidden = st.devices.length > 0;
+  const tb = $("#traceBar"), td = ui.trace && dev(ui.trace);
+  tb.hidden = !td;
+  if (td) tb.replaceChildren(h("span",{text:"Following sound from "+td.name}), h("button",{class:"btn small",type:"button",text:"Stop",onclick:()=>{ui.trace=null;render();}}));
+}
+function fit(){
+  const st = cur(), r = svg.getBoundingClientRect(); if (!st.devices.length || !r.width){ st.view = {x:20,y:20,k:1}; return; }
+  const x0 = Math.min(...st.devices.map(d=>d.x)), y0 = Math.min(...st.devices.map(d=>d.y));
+  const x1 = Math.max(...st.devices.map(d=>d.x+nodeW(d))), y1 = Math.max(...st.devices.map(d=>d.y+nodeH(d)));
+  const k = Math.max(.3, Math.min(1.25, (r.width-70)/(x1-x0), (r.height-90)/(y1-y0)));
+  st.view = {k, x:(r.width-(x1-x0)*k)/2 - x0*k, y:(r.height-28-(y1-y0)*k)/2 - y0*k};
+}
+function zoomBy(f,cx,cy){ const v = view(), r = svg.getBoundingClientRect(); cx = cx==null ? r.width/2 : cx; cy = cy==null ? r.height/2 : cy;
+  const k = Math.max(.3, Math.min(2.5, v.k*f)); v.x = cx-(cx-v.x)*k/v.k; v.y = cy-(cy-v.y)*k/v.k; v.k = k; drawCanvas(); save(); }
+
+function renderBar(){
+  const st = cur();
+  $("#setupSel").replaceChildren(...store.setups.map(x=>h("option",{value:x.id,text:x.name||"Untitled",selected:x.id===st.id})));
+  if (document.activeElement !== $("#setupName")) $("#setupName").value = st.name;
+  $("#btnUndo").disabled = !undo.length;
+  $("#btnDel").disabled = store.setups.length < 2;
+  $("#modeChips").replaceChildren(h("span",{class:"lbl",text:"Show cables for"}),
+    h("button",{class:"chip",type:"button","aria-pressed":String(!ui.mode),text:"Everything",onclick:()=>{ui.mode=null;render();}}),
+    ...st.modes.map(m=>h("span",{class:"chipset"},
+      h("button",{class:"chip",type:"button","aria-pressed":String(ui.mode===m.id),title:(m.note?m.note+". ":"")+"Double-click to rename or edit",text:m.name||"Untitled",onclick:()=>{ui.mode=m.id;render();},ondblclick:()=>{ui.mode=m.id;ui.tab="modes";render();}}),
+      h("button",{class:"x",type:"button","aria-label":"Remove the "+(m.name||"untitled")+" filter",title:"Remove this filter",text:"×",onclick:()=>removeMode(m.id)}))),
+    h("button",{class:"chip add",type:"button",title:"Add a new filter for another way you use the setup",text:"+ Add filter",onclick:openModeDialog}));
+  $("#layerChips").replaceChildren(h("span",{class:"lbl",text:"Lines"}),
+    ...Object.keys(SIGNALS).map(k=>{ const sw = s("svg",{width:26,height:8,class:"dg"}, s("g",{class:"edge sig-"+k}, s("path",{class:"line",d:"M1 4H25","stroke-dasharray":SIGNALS[k].dash||null})));
+      return h("button",{class:"chip layer",type:"button","aria-pressed":String(!!ui.layers[k]),title:(ui.layers[k]?"Hide ":"Show ")+SIGNALS[k].label.toLowerCase(),onclick:()=>{ui.layers[k]=!ui.layers[k];render();save();}}, sw, SIGNALS[k].label); }),
+    h("button",{class:"chip layer",type:"button","aria-pressed":String(ui.labels),title:ui.labels?"Hide the text on cables":"Show the text on cables",text:"Cable labels",onclick:()=>{ui.labels=!ui.labels;render();save();}}));
+}
+function removeMode(id){ const st = cur(), m = st.modes.find(x=>x.id===id); if (!m) return;
+  const only = st.conns.filter(c=>c.modes.length===1 && c.modes[0]===id).length;
+  confirmBox("Remove the "+(m.name||"untitled")+" filter?", only ? only+(only>1?" cables are":" cable is")+" used only in this filter. Removing it keeps "+(only>1?"them":"it")+" on the diagram, shown under every filter. Undo brings the filter back." : "Your devices and cables stay as they are. Undo brings the filter back.", "Remove filter",
+    ()=>{ snap(); st.modes = st.modes.filter(x=>x.id!==id); st.conns.forEach(c=>{ c.modes = c.modes.filter(x=>x!==id); }); if (ui.mode===id) ui.mode = null; render(); save(); }); }
+function openModeDialog(){ const st = cur();
+  $("#modeName").value = ""; $("#modeErr").hidden = true;
+  $("#modeStream").replaceChildren(h("option",{value:"",text:"Not a streaming activity"}), ...st.devices.filter(isComp).map(d=>h("option",{value:d.id,text:d.name})));
+  $("#modeCopy").replaceChildren(h("option",{value:"",text:"Start with no cables assigned"}), ...st.modes.map(m=>h("option",{value:m.id,text:"Copy from "+(m.name||"Untitled")})));
+  if (ui.mode) $("#modeCopy").value = ui.mode;
+  $("#dlgMode").showModal(); $("#modeName").focus(); }
+function renderPalette(){
+  const p = $("#palette");
+  if (!$("#palList")){ p.replaceChildren(h("h2",{text:"Add a device"}),
+      h("input",{class:"inp",id:"findDev",type:"search",placeholder:"Find a device…","aria-label":"Find a device type",oninput:e=>{ ui.find = e.target.value; renderPalette(); }}),
+      h("div",{id:"palList",class:"plist"})); }
+  const q = (ui.find||"").trim().toLowerCase(), list = $("#palList"), out = [];
+  const btn = (label,icon,fn,title) => h("button",{class:"padd",type:"button",title:title||null,onclick:fn}, s("svg",{width:20,height:20,viewBox:"0 0 24 24"}, s("path",{d:icon})), label);
+  const section = (name,items) => { const hit = items.filter(it=>!q || it[0].toLowerCase().includes(q) || name.toLowerCase().includes(q)); if (!hit.length) return;
+    out.push(h("details",{class:"pgroup",open:!!q || ui.open.has(name),ontoggle:e=>{ if (q) return; if (e.target.open) ui.open.add(name); else ui.open.delete(name); }},
+      h("summary",{}, h("span",{text:name}), h("span",{class:"cnt",text:hit.length})), h("div",{class:"plist"}, hit.map(it=>btn(...it))))); };
+  for (const g of GROUPS){ section(g, Object.keys(TYPES).filter(k=>TYPES[k].group===g).map(k=>[TYPES[k].label,TYPES[k].icon,()=>addDevice(k)]));
+    if (g==="Computers") section("Software", APPS.map(([nm,what])=>[nm,APP_ICON,()=>addApp(nm,what),what||"Any other program"]).concat([["Audio mixer app",TYPES.software.icon,()=>addDevice("software"),"Virtual mixer such as SteelSeries GG or Voicemeeter"]]));
+    if (g==="Computers") section("Cards inside a PC", CARDS.map(k=>[PRESETS[k].label,SLOT_ICON,()=>addCardFromPalette(k),"Adds this card inside your Desktop PC"])); }
+  if (!out.length) out.push(h("p",{style:"margin:0;color:var(--muted);font-size:14px",text:"Nothing matches. Add Other device from Controls and rename it."}));
+  list.replaceChildren(...out);
+}
+
+/* ---------- side panel ---------- */
+function field(label,id,control){ control.id = id; return h("div",{class:"field"}, h("label",{for:id,text:label}), control); }
+function textInput(obj,key,opts){ opts = opts||{}; let snapped = false;
+  return h("input",Object.assign({class:"inp",type:opts.number?"number":"text",value:obj[key]==null?"":obj[key],min:opts.number?0:null,step:opts.step||null,maxlength:opts.number?null:80,placeholder:opts.ph||null,
+    oninput:e=>{ if(!snapped){snap();snapped=true;} obj[key] = opts.number ? Math.max(0, +e.target.value||0) : e.target.value; drawCanvas(); renderBar(); if (opts.after) opts.after(); save(); }},{})); }
+function selectInput(options,value,onchange){ return h("select",{class:"inp",onchange:e=>{ snap(); onchange(e.target.value); render(); save(); }}, options.map(([v,t])=>h("option",{value:v,text:t,selected:String(v)===String(value)}))); }
+function checkInput(id,label,checked,onchange){ return h("label",{class:"check",for:id}, h("input",{type:"checkbox",id,checked,onchange:e=>{ snap(); onchange(e.target.checked); render(); save(); }}), h("span",{text:label})); }
+const sigColor = k => `var(--${k})`;
+
+function paneDetails(){
+  const st = cur(), out = [];
+  if (ui.sel && ui.sel.kind==="node" && dev(ui.sel.id)){
+    const d = dev(ui.sel.id), T = TYPES[d.type], src = isSource(d);
+    out.push(h("h3",{text:d.name||T.label}));
+    out.push(field("Name","f-name",textInput(d,"name")));
+    out.push(field("Device type","f-type",selectInput(Object.keys(TYPES).map(k=>[k,TYPES[k].label]),d.type,v=>{
+      const was = isSource(d); d.type = v; const now = isSource(d);
+      if (now && !was){ d.outlets = TYPES[v].outlets; d.maxW = TYPES[v].maxW; }
+      if (!now && was){ st.devices.forEach(x=>{ if (x.powerSource===d.id) x.powerSource=null; }); d.watts = TYPES[v].watts||0; d.plugs = TYPES[v].plugs||0; }
+      if (v==="software" && !d.channels) d.channels = [];
+    })));
+    out.push(h("div",{class:"field"}, h("span",{class:"lbl",text:"Colour"}), h("div",{class:"swatches"}, PALETTE.map((c,i)=>h("button",{class:"swb",type:"button",style:"background:"+c,"aria-label":"Colour "+(i+1),"aria-pressed":String(d.color===c),onclick:()=>{ snap(); d.color = c; render(); save(); }})))));
+    { let snapped = false; const pct = h("span",{class:"stat",style:"min-width:44px;text-align:right",text:Math.round(sc(d)*100)+"%"});
+      const rg = h("input",{type:"range",id:"f-size",min:60,max:250,step:5,value:Math.round(sc(d)*100),style:"flex:1;accent-color:var(--accent)",oninput:e=>{ if (!snapped){ snap(); snapped = true; } resize(d,()=>{ d.scale = +e.target.value/100; }); pct.textContent = e.target.value+"%"; drawCanvas(); save(); }});
+      out.push(h("div",{class:"field"}, h("label",{for:"f-size",text:"Size on the diagram"}), h("div",{class:"row"}, rg, pct, h("button",{class:"btn small",type:"button",text:"Reset",onclick:()=>{ snap(); resize(d,()=>{ delete d.scale; }); render(); save(); }})))); }
+    if (d.type!=="software") out.push(field("Model or note","f-note",textInput(d,"note",{ph:"e.g. 27 inch 144 Hz"})));
+    const sources = st.devices.filter(x=>isSource(x) && x.id!==d.id);
+    if (d.type==="software"){
+      if (!d.mix) d.mix = newMix();
+      out.push(field("Runs on","f-host",selectInput([["","Not set"]].concat(st.devices.filter(x=>COMP.includes(x.type)).map(x=>[x.id,x.name])),d.host||"",v=>{d.host=v||null;})));
+      const others = [["","No device linked"]].concat(st.devices.filter(x=>x.id!==d.id && !isSource(x) && !isSoft(x)).map(x=>[x.id,x.name]));
+      out.push(h("hr"), h("div",{class:"lbl",text:"Devices (the Master column)"}));
+      for (const [k,full,short,arrow,what] of MIXES){
+        const nameI = textInput(d.mix,k+"Name",{ph:k==="mic"?"Name in Windows, e.g. Microphone (Fifine)":"Name in Windows, e.g. Speakers (Realtek)"}); nameI.id = "f-mixn-"+k; nameI.setAttribute("aria-label",full+" device name in Windows");
+        out.push(field(full+" · "+what.toLowerCase(),"f-mix-"+k,selectInput(others,d.mix[k]||"",v=>{ d.mix[k] = v||null; })), nameI);
+      }
+      out.push(h("hr"), h("div",{class:"lbl",text:"Channels and which mix each one plays in"}));
+      (d.channels||[]).forEach((c,i)=>{
+        const nameI = textInput(c,"name",{ph:"Channel"}); nameI.id = "f-ch-n"+i; nameI.setAttribute("aria-label","Channel name");
+        const appsI = textInput(c,"apps",{ph:"Apps on this channel, e.g. Chrome"}); appsI.id = "f-ch-a"+i; appsI.setAttribute("aria-label","Apps on "+(c.name||"channel"));
+        out.push(h("div",{class:"row"}, nameI, checkInput("f-ch-p"+i,"Personal",!!c.personal,v=>{c.personal=v;}), checkInput("f-ch-s"+i,"Stream",!!c.stream,v=>{c.stream=v;}),
+          h("button",{class:"btn small",type:"button","aria-label":"Remove channel "+(c.name||""),text:"×",onclick:()=>{snap();resize(d,()=>d.channels.splice(i,1));render();save();}})), h("div",{class:"row sub sub2"}, appsI));
+      });
+      out.push(h("button",{class:"btn small",type:"button",style:"align-self:flex-start",text:"Add channel",onclick:()=>{snap();resize(d,()=>(d.channels=d.channels||[]).push({id:uid(),name:"",personal:true,stream:true,apps:""}));render();save();}}));
+      out.push(h("p",{text:"Tick Personal for channels you hear yourself and Stream for channels your viewers hear, the same as the headphone and broadcast buttons in the app's mixer."}));
+    } else if (d.type==="app"){
+      out.push(field("Runs on","f-host",selectInput([["","Not set"]].concat(st.devices.filter(isComp).map(x=>[x.id,x.name])),d.host||"",v=>{ d.host = v||null; })));
+      out.push(field("What it is for","f-note",textInput(d,"note",{ph:"e.g. Live streaming and recording"})));
+      out.push(field("Sends to","f-dest",textInput(d,"dest",{ph:"e.g. Twitch, YouTube, a meeting"})));
+      out.push(h("hr"), h("div",{class:"lbl",text:"Devices this app uses as sources"}));
+      const cand = st.devices.filter(x=>x.id!==d.id && !isSource(x) && !isComp(x) && x.type!=="app");
+      if (!cand.length) out.push(h("p",{text:"Add a camera, mic or capture card first."}));
+      cand.forEach((x,i)=>out.push(checkInput("f-use-"+i,x.name,(d.uses||[]).includes(x.id),v=>{ d.uses = (d.uses||[]).filter(u=>u!==x.id); if (v) d.uses.push(x.id); })));
+      out.push(h("p",{text:"Ticked devices get a dashed line to the app, so the diagram shows what feeds it. You can also drag from the app onto a device."}));
+    } else if (src){
+      out.push(h("hr"), h("div",{class:"two"}, field("Outlets","f-outlets",textInput(d,"outlets",{number:true})), field("Max load (watts)","f-maxw",textInput(d,"maxW",{number:true,step:50}))));
+      out.push(h("p",{text:d.type==="wall" ? "A standard US 15 amp circuit carries about 1,800 W, shared with everything else on the same breaker." : d.type==="powerstation" ? "Use the continuous AC output in watts printed on the unit, not the surge figure. Running time depends on its battery size." : d.type==="extcord" ? "Check the tag on the cord. A light 16-gauge cord carries about 13 amps (roughly 1,600 W at 120 V); a heavier 14-gauge cord carries 15 amps (1,800 W). Set the outlets to match the cord's end." : "Check the label on the strip. A 15 amp strip at 120 V is rated 1,800 W; a UPS lists its own watt limit."}));
+      if (d.type!=="wall") out.push(field("Plugged into","f-psrc",selectInput([["","Not plugged in"]].concat(sources.map(x=>[x.id,x.name])),d.powerSource||"",v=>{d.powerSource=v||null;})));
+    } else {
+      out.push(h("hr"), h("div",{class:"two"}, field("Wall plugs","f-plugs",textInput(d,"plugs",{number:true})), field("Power draw (watts)","f-watts",textInput(d,"watts",{number:true,step:5}))));
+      if ((+d.plugs||0) > 0){
+        out.push(field("Plugged into","f-psrc",selectInput([["","Not plugged in"]].concat(sources.map(x=>[x.id,x.name])),d.powerSource||"",v=>{d.powerSource=v||null;})));
+        out.push(checkInput("f-bulky","Bulky power brick that covers the outlet next to it",!!d.bulky,v=>{d.bulky=v;}));
+      } else out.push(h("p",{text:"Set wall plugs to 0 for gear powered over USB or by another device."}));
+    }
+    if (!src && !isSoft(d)){
+      out.push(h("hr"), h("div",{class:"lbl",text:"Ports and cards inside"}));
+      if (!hasPorts(d)) out.push(h("p",{text:"Add this device's own ports and any internal cards, then plug each cable into the exact port."}));
+      else out.push(checkInput("f-exp","Show ports and cards on the diagram",!!d.expanded,v=>resize(d,()=>{ d.expanded = v; })));
+      const act = fn => () => { snap(); resize(d,fn); render(); save(); };
+      const unport = ids => st.conns.forEach(c=>{ if (c.from===d.id && ids.includes(c.fromPort)) c.fromPort = null; if (c.to===d.id && ids.includes(c.toPort)) c.toPort = null; });
+      (d.groups||[]).forEach((gp,gi)=>{
+        const gn = textInput(gp,"name",{ph:"Card name"}); gn.id = "f-g"+gi; gn.setAttribute("aria-label","Card name"); gn.style.fontWeight = "600";
+        out.push(h("div",{class:"row"}, gn, h("button",{class:"btn small danger",type:"button",text:"Remove","aria-label":"Remove "+(gp.name||"card"),onclick:act(()=>{ unport(gp.ports.map(x=>x.id)); d.groups.splice(gi,1); })})));
+        gp.ports.forEach((pt,pi)=>{
+          const pn = textInput(pt,"name",{ph:"Port"}); pn.id = `f-p${gi}-${pi}`; pn.setAttribute("aria-label","Port name");
+          const ps = selectInput(Object.keys(CABLES).map(k=>[k,CABLES[k].label]),pt.type,v=>{ pt.type = v; if (!usbOf(pt)) pt.usb = v==="usbc" ? "c10" : ""; }); ps.id = `f-t${gi}-${pi}`; ps.setAttribute("aria-label","Port type");
+          out.push(h("div",{class:"row sub"}, pn, ps, h("button",{class:"btn small",type:"button","aria-label":"Remove port "+(pt.name||""),text:"×",onclick:act(()=>{ unport([pt.id]); gp.ports.splice(pi,1); })})));
+          if (isUsb(pt)){ const uk = usbOf(pt), us = selectInput([["","Colour not set"]].concat(Object.keys(USB).filter(k=>!!USB[k].c === (pt.type==="usbc")).map(k=>[k,USB[k].label])),pt.usb||"",v=>{ pt.usb = v; });
+            us.id = `f-u${gi}-${pi}`; us.setAttribute("aria-label","USB colour and speed for "+(pt.name||"port")); us.style.cssText = "flex:1;width:auto";
+            const sw = h("span",{class:"usbsw"+(pt.type==="usbc"?" c":""),style:"background:"+(uk?uk.color:"transparent")});
+            out.push(h("div",{class:"row sub sub2",title:uk?`${uk.speed}; power ${uk.power}. ${uk.note}`:null}, sw, us));
+            const w = usbWarn(st,d,pt); if (w) out.push(h("div",{class:"msg warn",style:"margin-left:14px",text:w})); }
+        });
+        out.push(h("button",{class:"btn small",type:"button",style:"align-self:flex-start;margin-left:14px",text:"Add port to "+(gp.name||"card"),onclick:act(()=>{ gp.ports.push({id:uid(),name:"Port "+(gp.ports.length+1),type:"usb"}); })}));
+      });
+      out.push(h("div",{class:"lbl",text:"Add a card inside "+(d.name||"this device")}), h("div",{class:"grp"}, CARDS.map(k=>h("button",{class:"btn small",type:"button",text:"+ "+PRESETS[k].label,onclick:()=>addCard(d.id,k)}))));
+      if (!(d.groups||[]).some(g=>/motherboard/i.test(g.name||""))) out.push(h("button",{class:"btn small",type:"button",style:"align-self:flex-start",text:"+ Motherboard ports",onclick:()=>addCard(d.id,"board")}));
+      if ((d.groups||[]).some(g=>g.ports.some(isUsb))) out.push(h("details",{class:"guide"}, h("summary",{text:"USB colour guide"}),
+        h("ul",{}, Object.keys(USB).map(k=>h("li",{}, h("span",{class:"usbsw"+(USB[k].c?" c":""),style:"background:"+USB[k].color}), h("span",{text:USB[k].label}), h("small",{text:`${USB[k].speed}; power ${USB[k].power}. ${USB[k].note}`})))),
+        h("p",{text:"Only blue for 5 Gbps is close to universal. Red, yellow, orange and teal differ between brands, and USB-C ports have no colour code, so check the motherboard manual."})));
+      if (hasPorts(d)) out.push(h("button",{class:"btn small",type:"button",style:"align-self:flex-start",text:"Match cables to free ports",onclick:()=>{ snap(); const n = autoAssign(st,d); render(); save(); toast(n ? n+(n>1?" cables":" cable")+" plugged into matching ports." : "No unassigned cable fits a free port."); }}));
+    }
+    out.push(h("hr"), h("div",{class:"lbl",text:"Cables on this device"}));
+    if (d.type==="app") return out.concat([h("hr"), h("div",{class:"row",style:"flex-wrap:wrap"}, h("button",{class:"btn danger",type:"button",text:"Delete app",onclick:()=>removeSel()}))]);
+    const mine = st.conns.filter(c=>c.from===d.id||c.to===d.id);
+    if (!mine.length) out.push(h("p",{text:"None yet."}));
+    else out.push(h("div",{class:"list"}, mine.map(c=>{ const o = dev(c.from===d.id?c.to:c.from);
+      return h("button",{class:"item",type:"button",onclick:()=>select("conn",c.id)}, h("span",{}, h("i",{class:"sw",style:"border-color:"+sigColor(c.signal)}), (c.from===d.id?"to ":"from ")+(o?o.name:"?")), h("span",{class:"num",text:CABLES[c.cable].label})); })));
+    const targets = st.devices.filter(x=>x.id!==d.id && !isSoft(x) && !isSource(x));
+    if (targets.length && !src && !isSoft(d)){
+      const sel = h("select",{class:"inp",id:"f-conn-to","aria-label":"Device to connect to"}, targets.map(x=>h("option",{value:x.id,text:x.name})));
+      out.push(h("div",{class:"row"}, sel, h("button",{class:"btn",type:"button",text:"Run cable",onclick:()=>addConn(d.id,sel.value)})));
+    }
+    out.push(h("hr"), h("div",{class:"row",style:"flex-wrap:wrap"},
+      (!src && !isSoft(d)) ? h("button",{class:"btn",type:"button",text:ui.trace===d.id?"Stop following sound":"Follow sound from here",onclick:()=>{ui.trace = ui.trace===d.id?null:d.id; render();}}) : null,
+      h("button",{class:"btn",type:"button",text:"Duplicate",onclick:()=>{ snap(); const c = JSON.parse(JSON.stringify(d)); c.id = uid(); c.x += 30; c.y += 30; c.name += " 2"; c.color = nextColour(st); if (c.channels) c.channels.forEach(x=>x.id=uid()); st.devices.push(c); ui.sel = {kind:"node",id:c.id}; render(); save(); }}),
+      h("button",{class:"btn danger",type:"button",text:"Delete device",onclick:()=>removeSel()})));
+  } else if (ui.sel && ui.sel.kind==="conn" && st.conns.some(c=>c.id===ui.sel.id)){
+    const c = st.conns.find(x=>x.id===ui.sel.id), A = dev(c.from), B = dev(c.to);
+    out.push(h("h3",{text:(A?A.name:"?")+(c.dir==="both"?" ↔ ":" → ")+(B?B.name:"?")}));
+    out.push(field("Cable","f-cable",selectInput(Object.keys(CABLES).map(k=>[k,CABLES[k].label]),c.cable,v=>{ setCable(c,v); })));
+    for (const [dv,key] of [[A,"fromPort"],[B,"toPort"]]) if (dv && hasPorts(dv))
+      out.push(field("Port on "+dv.name,"f-"+key,selectInput([["","Whole device (no specific port)"]].concat(dv.groups.flatMap(g=>g.ports.map(x=>[x.id,(g.name||"Card")+": "+(x.name||"Port")]))),c[key]||"",v=>{ c[key] = v||null; })));
+    for (const [dv,key] of [[A,"fromPort"],[B,"toPort"]]){ const pt = findPort(dv,c[key]), uk = pt && usbOf(pt); if (!uk) continue;
+      out.push(h("div",{class:"item",style:"align-items:flex-start"}, h("span",{class:"usbsw"+(uk.c?" c":""),style:"margin-top:4px;background:"+uk.color}), h("span",{style:"flex:1",text:`${pt.name} is ${uk.label}. ${uk.speed}; power ${uk.power}. ${uk.note}`})));
+      const w = usbWarn(st,dv,pt); if (w) out.push(h("div",{class:"msg warn",text:w})); }
+    out.push(field("What it carries","f-label",textInput(c,"label",{ph:"e.g. Game audio + party chat"})));
+    out.push(h("div",{class:"two"},
+      field("Line colour","f-signal",selectInput(["video","audio","data","net"].map(k=>[k,SIGNALS[k].label]),c.signal,v=>{c.signal=v;})),
+      field("Direction","f-dir",selectInput([["one","One way"],["both","Both ways"]],c.dir,v=>{c.dir=v;}))));
+    out.push(checkInput("f-audio","Sound travels over this cable",!!c.audio,v=>{c.audio=v;}));
+    out.push(h("button",{class:"btn small",type:"button",text:"Swap direction",style:"align-self:flex-start",onclick:()=>{snap();[c.from,c.to]=[c.to,c.from];render();save();}}));
+    out.push(h("hr"), h("div",{class:"lbl",text:"In use during"}));
+    out.push(checkInput("f-m-all","Everything (always connected and active)",!c.modes.length,v=>{ c.modes = v ? [] : st.modes.map(m=>m.id); }));
+    st.modes.forEach((m,i)=>out.push(checkInput("f-m-"+i,m.name,c.modes.includes(m.id),v=>{ c.modes = v ? c.modes.concat(m.id) : c.modes.filter(x=>x!==m.id); })));
+    out.push(h("hr"), h("button",{class:"btn danger",type:"button",text:"Delete cable",style:"align-self:flex-start",onclick:()=>removeSel()}));
+  } else {
+    out.push(h("h3",{text:"Nothing selected"}));
+    out.push(h("p",{text:"Click a device or a cable in the diagram to edit it. Pick a device from the left to add it."}));
+    out.push(h("div",{class:"list"},
+      h("div",{class:"item"}, h("span",{text:"Devices"}), h("span",{class:"num",text:st.devices.length})),
+      h("div",{class:"item"}, h("span",{text:"Cables"}), h("span",{class:"num",text:st.conns.length}))));
+    const ta = h("textarea",{class:"inp",rows:5,placeholder:"Driver versions, OBS settings, which port is which, what you plan to upgrade…",oninput:e=>{st.notes=e.target.value;save();}}); ta.value = st.notes||"";
+    out.push(field("Notes for this setup","f-notes",ta));
+    out.push(h("hr"), h("p",{text:"Your setups are saved only in this browser, on this device. Nothing is uploaded, and nobody else who opens this app can see them. To back one up or move it to another device or browser, use Save setup file there and Open setup here."}));
+    out.push(h("div",{class:"row",style:"flex-wrap:wrap"},
+      h("button",{class:"btn",type:"button",text:"Copy setup code",onclick:copyCode}),
+      h("button",{class:"btn",type:"button",text:"Add the example setup",onclick:()=>{ snap(); const ex = exampleSetup(); ex.name = "Example setup"; store.setups.push(ex); store.current = ex.id; ui.sel=null; ui.mode=null; fitSoon(); save(); }})));
+  }
+  return out;
+}
+function panePower(){
+  const st = cur(), rep = powerReport(st), out = [];
+  out.push(h("h3",{text:"Power capacity"}));
+  out.push(h("div",{}, h("div",{class:"big",text:fmt(rep.total)+" W"}), h("p",{text:"Estimated draw with everything running at once."})));
+  if (!rep.sources.length) out.push(h("p",{text:"Add a power strip or wall outlet from the Power group on the left, then set each device's Plugged into."}));
+  for (const r of rep.sources){
+    const pct = r.maxW ? r.load/r.maxW*100 : 0, free = r.outlets-r.used, head = r.maxW*0.8-r.load;
+    const pips = []; for (let i=0;i<Math.max(r.outlets,r.used);i++) pips.push(h("span",{class:"pip"+(i<r.used ? (i<r.outlets?" on":" over") : "")}));
+    out.push(h("div",{class:"card "+r.status},
+      h("header",{}, h("h4",{text:r.d.name}), h("span",{class:"pill "+r.status,text:r.status==="ok"?"OK":r.status==="warn"?"Check":"Over"})),
+      h("div",{class:"pips",role:"img","aria-label":`${r.used} of ${r.outlets} outlets used`}, pips),
+      h("div",{class:"stat",text:`${r.used} of ${r.outlets} outlets used` + (free>0?` · room for ${free} more plug${free>1?"s":""}`: free===0?" · full":"")}),
+      h("div",{class:"meter "+r.status,role:"img","aria-label":`${Math.round(pct)}% of rated load`}, h("i",{style:`width:${Math.min(100,pct)}%`}), h("b",{title:"80% of rating"})),
+      h("div",{class:"stat",text:`${fmt(r.load)} W of ${fmt(r.maxW)} W (${Math.round(pct)}%)` + (head>0?` · ${fmt(head)} W before the 80% mark`:"")}),
+      r.msgs.map(([k,t])=>h("div",{class:"msg "+k,text:t})),
+      r.kids.length ? h("div",{class:"list"}, r.kids.map(k=>h("button",{class:"item",type:"button",onclick:()=>select("node",k.id)}, h("span",{text:k.name}),
+        h("span",{class:"num",text:(isSource(k)?fmt(rep.sources.find(x=>x.d.id===k.id).load):fmt(k.watts||0))+" W · "+r.slots(k)+(r.slots(k)>1?" outlets":" outlet")})))) : h("p",{text:"Nothing plugged in yet."}),
+      h("button",{class:"btn small",type:"button",text:"Edit outlets and rating",style:"align-self:flex-start",onclick:()=>select("node",r.d.id)})));
+  }
+  if (rep.unplugged.length){
+    out.push(h("div",{class:"lbl",text:"Needs a plug but not assigned"}));
+    out.push(h("div",{class:"list"}, rep.unplugged.map(k=>h("button",{class:"item",type:"button",onclick:()=>select("node",k.id)}, h("span",{text:k.name}), h("span",{class:"num",text:fmt(k.watts||0)+" W"})))));
+  }
+  out.push(h("p",{text:"Watts are starting estimates for typical gear at full load. For a real answer, use the number on each device's label or power brick, and the rating printed on your strip."}));
+  return out;
+}
+function paneModes(){
+  const st = cur(), out = [], comps = st.devices.filter(isComp);
+  out.push(h("h3",{text:"Activities"}));
+  out.push(h("p",{text:"An activity is one way you use the setup, such as streaming from the Desktop or from the Laptop. Set which PC runs the stream in each one, then choose where each device plugs in."}));
+  st.modes.forEach((m,i)=>{
+    const n = st.conns.filter(c=>!c.modes.length || c.modes.includes(m.id)).length, on = ui.mode===m.id;
+    const inp = textInput(m,"name"); inp.id = "f-mode-"+i; inp.setAttribute("aria-label","Activity name"); inp.style.fontWeight = "600";
+    const note = textInput(m,"note",{ph:"When you use it, e.g. GPU-heavy games"}); note.id = "f-mnote-"+i; note.setAttribute("aria-label","When you use "+(m.name||"this activity"));
+    out.push(h("div",{class:"card"+(on?" ok":"")},
+      h("div",{class:"row"}, inp, h("button",{class:"btn small",type:"button","aria-label":"Remove activity "+m.name,text:"×",onclick:()=>{ snap(); st.modes.splice(i,1); st.conns.forEach(c=>c.modes=c.modes.filter(x=>x!==m.id)); if (ui.mode===m.id) ui.mode=null; render(); save(); }})),
+      field("Stream runs on","f-mstr-"+i,selectInput([["","Not a streaming activity"]].concat(comps.map(c=>[c.id,c.name])),m.streamer||"",v=>{ m.streamer = v||null; })),
+      note,
+      h("div",{class:"row",style:"justify-content:space-between"}, h("span",{class:"stat",style:"color:var(--muted)",text:n+" cables in use"}), h("button",{class:"btn small",type:"button",disabled:on,text:on?"Showing on the diagram":"Show on the diagram",onclick:()=>{ ui.mode = m.id; render(); }}))));
+  });
+  out.push(h("button",{class:"btn small",type:"button",text:"Add activity",style:"align-self:flex-start",onclick:()=>{ snap(); st.modes.push({id:uid(),name:"New activity",streamer:null,note:""}); render(); save(); }}));
+  const cm = ui.mode && st.modes.find(m=>m.id===ui.mode), gear = st.devices.filter(d=>GEAR.includes(d.type));
+  out.push(h("hr"), h("div",{class:"lbl",text:cm ? "Which PC each device plugs into · "+cm.name : "Which PC each device plugs into"}));
+  if (!cm) out.push(h("p",{text:"Choose Show on the diagram on an activity to set where your mic, webcam, Stream Deck and capture card plug in for it."}));
+  else if (!comps.length || !gear.length) out.push(h("p",{text:"Add a PC and some streaming gear (mic, webcam, Stream Deck, capture card) first."}));
+  else { gear.forEach((g,i)=>{ const sel = selectInput([["","Not plugged into a PC"]].concat(comps.map(c=>[c.id,c.name+(cm.streamer===c.id?" (streaming PC)":"")])),gearTarget(st,g,cm.id)||"",v=>setGearTarget(st,g,cm.id,v||null));
+      sel.id = "f-gear-"+i; sel.setAttribute("aria-label","PC that "+g.name+" plugs into"); out.push(h("div",{class:"row"}, h("label",{for:"f-gear-"+i,style:"flex:0 0 40%;font-size:14px",text:g.name}), sel)); });
+    out.push(h("p",{text:"Changing a PC here adds or re-assigns the cable for this activity only. Other activities keep their own wiring."})); }
+  const mname = ui.mode ? (st.modes.find(m=>m.id===ui.mode)||{}).name : "everything connected";
+  out.push(h("hr"), h("div",{class:"lbl",text:"Where sound goes: "+mname}));
+  const paths = audioPaths(st,ui.mode);
+  if (!paths.length) out.push(h("p",{text:"No sound paths here yet. Run an audio, HDMI or USB cable and tick Sound travels over this cable."}));
+  for (const p of paths){ const row = h("div",{class:"path"});
+    p.forEach(([c,id],i)=>{ const d = dev(id); if (i) row.append(h("small",{text:" —"+CABLES[c.cable].label+"→ "})); row.append(h(i===0||i===p.length-1?"strong":"span",{text:d?d.name:"?"})); });
+    out.push(row); }
+  return out;
+}
+function renderSide(){
+  const rep = powerReport(cur());
+  const tabs = [["details","Details"],["power","Power"],["modes","Activities"]];
+  $("#tabs").replaceChildren(...tabs.map(([k,t])=>h("button",{class:"tab",type:"button",role:"tab","aria-selected":String(ui.tab===k),onclick:()=>{ui.tab=k;renderSide();}}, t,
+    k==="power" && rep.worst!=="ok" ? h("span",{class:"dot",style:"background:var(--"+rep.worst+")",title:"Needs attention"}) : null)));
+  $("#pane").replaceChildren(...(ui.tab==="power"?panePower():ui.tab==="modes"?paneModes():paneDetails()).filter(Boolean));
+}
+function render(){ renderBar(); drawCanvas(); renderSide(); renderPop(); }
+function fitSoon(){ render(); requestAnimationFrame(()=>{ fit(); drawCanvas(); }); }
+
+/* ---------- editing ---------- */
+function select(kind,id){ ui.pop = null; ui.sel = kind ? {kind,id} : null; if (kind) ui.tab = "details"; render(); }
+function addDevice(type){
+  snap(); const st = cur(), T = TYPES[type], v = view(), r = svg.getBoundingClientRect();
+  let x = Math.round(((r.width/2-v.x)/v.k - NODE_W/2)/10)*10, y = Math.round(((r.height/2-v.y)/v.k - 40)/10)*10;
+  while (st.devices.some(d=>Math.abs(d.x-x)<20 && Math.abs(d.y-y)<20)){ x += 30; y += 30; }
+  const n = st.devices.filter(d=>d.type===type).length;
+  const d = {id:uid(),type,color:nextColour(st),name:T.label.split(/ \/ | \(/)[0]+(n?" "+(n+1):""),x,y,note:"",watts:T.watts||0,plugs:T.plugs||0,bulky:false,powerSource:null};
+  if (T.source){ d.outlets = T.outlets; d.maxW = T.maxW; }
+  if (type==="desktop"){ d.groups = [preset("board"),preset("gpu")]; d.expanded = true; }
+  if (type==="mobilepc"){ d.note = "Built-in screen"; d.groups = [preset("board"),preset("gpu"),preset("capture2")]; d.expanded = true; }
+  if (type==="app"){ d.host = null; d.uses = []; d.dest = ""; }
+  if (type==="software") { d.name = "Audio app"; d.host = null; d.mix = newMix(); d.channels = ["Game","Chat","Media","Aux","Mic"].map(nm=>({id:uid(),name:nm,personal:nm!=="Mic",stream:true,apps:""})); }
+  st.devices.push(d); ui.sel = {kind:"node",id:d.id}; ui.tab = "details"; render(); save();
+}
+function guess(a,b){
+  const A = a.type, B = b.type, g = (cable,signal,label,audio)=>({cable,signal:signal||CABLES[cable].signal,label:label||"",audio:audio==null?CABLES[cable].audio:audio});
+  if (A==="keyboard"||A==="mouse"||A==="controller"||A==="tablet") return g("usb","data","");
+  if (A==="hdmiswitch"||B==="hdmiswitch"||A==="hdmisplit"||B==="hdmisplit"||B==="vmixer"||B==="avr"||B==="projector"||B==="portmon") return g("hdmi","video","Video + audio");
+  if (A==="videobar") return g("usb","video","Camera + room audio",true);
+  if (A==="confcam"||A==="doccam") return g("usb","video","Camera");
+  if (A==="speakerphone"||A==="micarray"||A==="wmic"||A==="confphone") return g("usb","audio","Room audio",true);
+  if (B==="speakerphone"||B==="confphone") return g("usb","audio","Call audio",true);
+  if (A==="wpres") return g("hdmi","video","Shared screen");
+  if (A==="roomctl") return g("usb","data","Room controls");
+  if (B==="wheadset") return g("wireless","audio","Game + chat");
+  if (A==="wheadset") return g("wireless","audio","Headset mic");
+  if (B==="sub") return g("rca","audio","Bass");
+  if (A==="modem"||B==="modem"||A==="nas"||B==="nas") return g("eth","net","");
+  if (A==="hotspot"||B==="hotspot") return g("usb","net","Internet");
+  if (B==="bonder") return g("hdmi","video","Program out");
+  if (A==="bonder") return g("eth","net","Encoded stream");
+  if (A==="mic") return B==="mixer" ? g("xlr","audio","Mic voice") : g("usb","audio","Mic voice",true);
+  if (B==="monitor"||B==="tv") return g("hdmi","video","Picture");
+  if (B==="headphones"||B==="speakers"||B==="soundbar") return g("trs","audio","Sound");
+  if (A==="headphones") return g("usb","audio","Headset mic",true);
+  if (B==="capture") return g("hdmi","video","Video + audio");
+  if (A==="capture") return g("usb","video","Capture feed",true);
+  if (A==="console") return g("hdmi","video","Video + audio");
+  if (A==="webcam") return g("usb","video","Webcam video");
+  if (A==="camera") return g("usb","video","Camera");
+  if (A==="router"||B==="router") return g("eth","net","");
+  if (A==="mixer") return g("usb","audio","Mix",true);
+  if (A==="adapter"||B==="adapter"||B==="mixer") return g("trs","audio","Sound");
+  return g("usb","data","");
+}
+function addConn(from,to,popAt,ports){
+  const st = cur(), a = dev(from), b = dev(to); if (!a || !b || from===to) return;
+  if (isSource(b) || isSource(a)){ const d = isSource(b) ? a : b, srcDev = isSource(b) ? b : a;
+    if (isSource(d) && d.type==="wall") return; snap(); d.powerSource = srcDev.id; ui.layers.power = true; ui.sel = {kind:"node",id:d.id}; ui.tab = "details"; render(); save(); toast(d.name+" is now plugged into "+srcDev.name+"."); return; }
+  if (a.type==="app" || b.type==="app"){ const sw = a.type==="app" ? a : b, o = a.type==="app" ? b : a; if (isSoft(o) || isSource(o)) return; snap();
+    if (isComp(o)){ sw.host = o.id; toast(sw.name+" runs on "+o.name+"."); } else { sw.uses = (sw.uses||[]).filter(u=>u!==o.id).concat(o.id); toast(o.name+" is now a source in "+sw.name+"."); }
+    ui.sel = {kind:"node",id:sw.id}; ui.tab = "details"; render(); save(); return; }
+  if (a.type==="software" || b.type==="software"){ const sw = a.type==="software" ? a : b, o = a.type==="software" ? b : a;
+    snap(); if (!sw.mix) sw.mix = newMix(); let msg;
+    if (COMP.includes(o.type) && !sw.host){ sw.host = o.id; msg = sw.name+" runs on "+o.name+"."; }
+    else { const k = o.type==="mic" ? "mic" : !sw.mix.personal ? "personal" : "stream"; sw.mix[k] = o.id; msg = o.name+" is now the "+MIXES.find(m=>m[0]===k)[1].toLowerCase()+" device."; }
+    toast(msg);
+    ui.sel = {kind:"node",id:sw.id}; ui.tab = "details"; render(); save(); return; }
+  snap(); const c = Object.assign({id:uid(),from,to,dir:"one",modes:ui.mode?[ui.mode]:[],fromPort:(ports&&ports.fromPort)||null,toPort:(ports&&ports.toPort)||null}, guess(a,b));
+  const pp = findPort(b,c.toPort) || findPort(a,c.fromPort), known = !!(pp && CABLES[pp.type]); if (known) setCable(c,pp.type);
+  st.conns.push(c); ui.sel = {kind:"conn",id:c.id}; ui.tab = "details"; ui.pop = popAt && !known ? {id:c.id,x:popAt.x,y:popAt.y} : null; render(); save();
+  const w = (findPort(a,c.fromPort) && usbWarn(st,a,findPort(a,c.fromPort))) || (findPort(b,c.toPort) && usbWarn(st,b,findPort(b,c.toPort))); if (w) toast(w);
+}
+function removeSel(){
+  const st = cur(); if (!ui.sel) return; snap();
+  if (ui.sel.kind==="conn") st.conns = st.conns.filter(c=>c.id!==ui.sel.id);
+  else { const id = ui.sel.id; st.devices = st.devices.filter(d=>d.id!==id); st.conns = st.conns.filter(c=>c.from!==id && c.to!==id);
+    st.devices.forEach(d=>{ if (d.powerSource===id) d.powerSource = null; if (d.host===id) d.host = null; if (d.uses) d.uses = d.uses.filter(u=>u!==id); if (d.mix) for (const k of ["personal","stream","mic"]) if (d.mix[k]===id) d.mix[k] = null; });
+    st.modes.forEach(m=>{ if (m.streamer===id) m.streamer = null; });
+    if (ui.trace===id) ui.trace = null; }
+  ui.sel = null; render(); save();
+}
+
+/* ---------- pointer interaction ---------- */
+let drag = null;
+const toWorld = e => { const r = svg.getBoundingClientRect(), v = view(); return {x:(e.clientX-r.left-v.x)/v.k, y:(e.clientY-r.top-v.y)/v.k}; };
+const nodeAt = p => { const L = cur().devices; for (let i=L.length-1;i>=0;i--){ const d = L[i]; if (p.x>=d.x-8 && p.x<=d.x+nodeW(d)+8 && p.y>=d.y-8 && p.y<=d.y+nodeH(d)+8) return d; } return null; };
+function canDrop(g,d){ if (!d) return false; if (g.type==="link") return d.id!==g.from;
+  const c = cur().conns.find(x=>x.id===g.id); return !!c && d.id!==(g.end==="from"?c.to:c.from) && !isSource(d) && !isSoft(d); }
+function dragOpts(o){
+  if (!drag || (drag.type!=="link" && drag.type!=="relink")) return;
+  const st = cur(); o.cands = new Set(st.devices.filter(d=>canDrop(drag,d)).map(d=>d.id)); o.drop = drag.over;
+  o.dropPort = drag.overPort;
+  if (drag.type==="link"){ o.linking = drag.from;
+    if (drag.over){ const a = dev(drag.from), b = dev(drag.over);
+      if (isSource(a) || isSource(b)) o.preview = isSource(b) ? {from:b.id,to:a.id,signal:"power"} : {from:a.id,to:b.id,signal:"power"};
+      else if (isSoft(a) || isSoft(b)) o.preview = {from:a.id,to:b.id,signal:"soft"};
+      else { const pp = findPort(b,drag.overPort) || findPort(a,drag.fromPort), g0 = guess(a,b);
+        o.preview = {from:a.id,to:b.id,fromPort:drag.fromPort,toPort:drag.overPort,signal:pp && CABLES[pp.type] && CABLES[pp.type].signal!=="data" ? CABLES[pp.type].signal : g0.signal}; } } }
+  else { const c = st.conns.find(x=>x.id===drag.id); o.linking = drag.end==="from"?c.to:c.from; o.hide = c.id;
+    if (drag.over) o.preview = drag.end==="from" ? {from:drag.over,to:c.to,signal:c.signal,fromPort:drag.overPort,toPort:c.toPort} : {from:c.from,to:drag.over,signal:c.signal,fromPort:c.fromPort,toPort:drag.overPort}; }
+}
+function dragRubber(){
+  if (!drag || drag.over || !drag.moved || (drag.type!=="link" && drag.type!=="relink")) return;
+  let a = drag.start; if (drag.type==="relink"){ const pts = lastPts[drag.id]; if (!pts) return; const q = drag.end==="from" ? pts[pts.length-1] : pts[0]; a = {x:q[0],y:q[1]}; }
+  world.append(s("path",{class:"rubber",d:`M${a.x} ${a.y} L${drag.p.x} ${drag.p.y}`}), s("circle",{class:"rubber-end",cx:drag.p.x,cy:drag.p.y,r:5}));
+}
+svg.addEventListener("pointerdown", e=>{
+  if (e.button) return;
+  if (document.activeElement && document.activeElement !== document.body && !svg.contains(document.activeElement)) document.activeElement.blur();
+  if (ui.pop){ ui.pop = null; renderPop(); }
+  const rzEl = e.target.closest("[data-resize]");
+  if (rzEl){ if (ui.pop){ ui.pop = null; renderPop(); } drag = {type:"scale",id:rzEl.dataset.resize,moved:false}; e.preventDefault(); return; }
+  const ac = e.target.closest("[data-addcard]");
+  if (ac){ ui.pop = {kind:"card",dev:ac.dataset.addcard,x:e.clientX,y:e.clientY}; renderPop(); e.preventDefault(); return; }
+  const tg = e.target.closest("[data-toggle]");
+  if (tg){ const d = dev(tg.dataset.toggle); snap(); resize(d,()=>{ d.expanded = !d.expanded; }); render(); save(); e.preventDefault(); return; }
+  const t = e.target, gr = t.closest("[data-grip]"), hd = t.closest("[data-handle]"), nd = t.closest("[data-node]"), ed = t.closest("[data-edge]"), p = toWorld(e);
+  if (gr){ drag = {type:"relink",id:gr.dataset.conn,end:gr.dataset.grip,p,over:null,moved:false}; drawCanvas(); }
+  else if (hd){ const d = dev(hd.dataset.handle); drag = {type:"link",from:d.id,start:{x:d.x+ +hd.dataset.hx*sc(d),y:d.y+ +hd.dataset.hy*sc(d)},fromPort:hd.dataset.port||null,p,over:null,moved:false}; drawCanvas(); }
+  else if (nd){ const d = dev(nd.dataset.node); drag = {type:"move",id:d.id,ox:p.x-d.x,oy:p.y-d.y,moved:false,sx:e.clientX,sy:e.clientY}; if (!ui.sel || ui.sel.id!==d.id) select("node",d.id); }
+  else if (ed){ const id = ed.dataset.edge; if (id.startsWith("pw:")||id.startsWith("sw:")) select("node",id.slice(3).split("~")[0]); else select("conn",id); }
+  else { const v = view(); drag = {type:"pan",sx:e.clientX,sy:e.clientY,vx:v.x,vy:v.y,moved:false}; svg.classList.add("panning"); }
+  e.preventDefault();
+});
+window.addEventListener("pointermove", e=>{
+  if (!drag) return; const p = toWorld(e);
+  if (drag.type==="move"){ if (!drag.moved && Math.hypot(e.clientX-drag.sx,e.clientY-drag.sy) < 4) return;
+    if (!drag.moved){ snap(); drag.moved = true; } const d = dev(drag.id); d.x = Math.round((p.x-drag.ox)/10)*10; d.y = Math.round((p.y-drag.oy)/10)*10; drawCanvas(); }
+  else if (drag.type==="scale"){ const d = dev(drag.id); if (!drag.moved){ snap(); drag.moved = true; }
+    resize(d,()=>{ d.scale = Math.round(Math.max(.6, Math.min(2.5, ((p.x-d.x)/NODE_W + (p.y-d.y)/baseH(d))/2))*20)/20; }); drawCanvas(); }
+  else if (drag.type==="pan"){ const v = view(); if (Math.hypot(e.clientX-drag.sx,e.clientY-drag.sy) > 3) drag.moved = true; v.x = drag.vx+e.clientX-drag.sx; v.y = drag.vy+e.clientY-drag.sy; drawCanvas(); }
+  else { drag.p = p; drag.moved = true; const d = nodeAt(p); drag.over = canDrop(drag,d) ? d.id : null; drag.overPort = drag.over ? portAt(d,p.y) : null; drawCanvas(); }
+});
+window.addEventListener("pointerup", e=>{
+  if (!drag) return; const g = drag; drag = null; svg.classList.remove("panning");
+  if (g.type==="link"){ if (g.over) addConn(g.from, g.over, {x:e.clientX,y:e.clientY}, {fromPort:g.fromPort,toPort:g.overPort}); else { drawCanvas(); if (g.moved) toast("Drop the cable on a device to connect it."); } }
+  else if (g.type==="relink"){ const c = cur().conns.find(x=>x.id===g.id); if (g.over && c){ snap(); c[g.end] = g.over; c[g.end+"Port"] = g.overPort||null; render(); save(); } else drawCanvas(); }
+  else if (g.type==="pan"){ if (!g.moved && (ui.sel || ui.trace)){ ui.sel = null; ui.trace = null; render(); } save(); }
+  else if ((g.type==="move" || g.type==="scale") && g.moved){ renderSide(); save(); }
+});
+window.addEventListener("pointercancel", ()=>{ if (drag){ drag = null; svg.classList.remove("panning"); drawCanvas(); } });
+svg.addEventListener("wheel", e=>{ e.preventDefault(); const r = svg.getBoundingClientRect(); zoomBy(Math.exp(-e.deltaY*0.0015), e.clientX-r.left, e.clientY-r.top); }, {passive:false});
+svg.addEventListener("keydown", e=>{ const nd = e.target.closest && e.target.closest("[data-node]"); if (!nd) return; const d = dev(nd.dataset.node);
+  if (e.key==="Enter"||e.key===" "){ e.preventDefault(); select("node",d.id); }
+  const mv = {ArrowLeft:[-10,0],ArrowRight:[10,0],ArrowUp:[0,-10],ArrowDown:[0,10]}[e.key];
+  if (mv){ e.preventDefault(); snap(); d.x += mv[0]; d.y += mv[1]; drawCanvas(); save(); const again = world.querySelector(`[data-node="${d.id}"]`); if (again) again.focus(); } });
+window.addEventListener("keydown", e=>{
+  const typing = /^(INPUT|TEXTAREA|SELECT)$/.test((e.target.tagName||""));
+  if (e.key==="Escape" && drag && (drag.type==="link"||drag.type==="relink")){ drag = null; drawCanvas(); return; }
+  if (e.key==="Escape" && ui.pop){ ui.pop = null; renderPop(); return; }
+  if ((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==="z" && !typing){ e.preventDefault(); doUndo(); }
+  if (typing || document.querySelector("dialog[open]")) return;
+  if ((e.key==="Delete"||e.key==="Backspace") && ui.sel){ e.preventDefault(); removeSel(); }
+  if (e.key==="Escape"){ ui.sel = null; ui.trace = null; render(); }
+});
+function setCable(c,k){ const was = CABLES[c.cable], now = CABLES[k]; c.cable = k;
+  if (now.signal!=="data"){ c.signal = now.signal; c.audio = now.audio; } else if (was.signal==="net"){ c.signal = "data"; c.audio = false; } }
+function renderPop(){
+  const el = $("#cablePop");
+  if (ui.pop && ui.pop.kind==="card" && dev(ui.pop.dev)){ const r = $("#stage").getBoundingClientRect(), id = ui.pop.dev; el.hidden = false;
+    el.replaceChildren(h("div",{class:"lbl",text:"Add a card inside "+dev(id).name}), h("div",{class:"grp"}, CARDS.map(k=>h("button",{class:"chip",type:"button",text:PRESETS[k].label,onclick:()=>addCard(id,k)}))),
+      h("button",{class:"btn small",type:"button",text:"Cancel",style:"align-self:flex-end",onclick:()=>{ ui.pop = null; renderPop(); }}));
+    el.style.left = Math.max(8, Math.min(r.width-288, ui.pop.x-r.left-140))+"px"; el.style.top = Math.max(8, Math.min(r.height-230, ui.pop.y-r.top+14))+"px"; return; }
+  const c = ui.pop && cur().conns.find(x=>x.id===ui.pop.id); if (!c){ el.hidden = true; return; }
+  const r = $("#stage").getBoundingClientRect(); el.hidden = false;
+  el.replaceChildren(h("div",{class:"lbl",text:"Which cable is this?"}),
+    h("div",{class:"grp"}, Object.keys(CABLES).map(k=>h("button",{class:"chip",type:"button","aria-pressed":String(c.cable===k),text:CABLES[k].label,onclick:()=>{ setCable(c,k); render(); save(); }}))),
+    h("button",{class:"btn small primary",type:"button",text:"Done",style:"align-self:flex-end",onclick:()=>{ ui.pop = null; renderPop(); }}));
+  el.style.left = Math.max(8, Math.min(r.width-288, ui.pop.x-r.left-140))+"px"; el.style.top = Math.max(8, Math.min(r.height-210, ui.pop.y-r.top+18))+"px";
+}
+
+/* ---------- export ---------- */
+function exportSvg(){
+  const st = cur(); if (!st.devices.length) return null;
+  const P = 36, x0 = Math.min(...st.devices.map(d=>d.x)), y0 = Math.min(...st.devices.map(d=>d.y));
+  const x1 = Math.max(...st.devices.map(d=>d.x+nodeW(d))), y1 = Math.max(...st.devices.map(d=>d.y+nodeH(d)));
+  const rep = powerReport(st), used = Object.keys(SIGNALS).filter(k=>ui.layers[k] && (k==="power"?st.devices.some(d=>d.powerSource):k==="soft"?st.devices.some(d=>isSoft(d)&&d.host):st.conns.some(c=>c.signal===k)));
+  const W = Math.max(x1-x0+P*2, 640), top = 78, foot = 44 + rep.sources.length*19 + (rep.sources.length?10:0), H = y1-y0+P*2+top+foot;
+  const css = DIAGRAM_CSS.replace(/var\(--([a-z]+)\)/g,(m,k)=>LIGHT[k]||m);
+  const root = s("svg",{xmlns:NS,class:"dg",width:W,height:H,viewBox:`0 0 ${W} ${H}`}, s("style",{text:css}));
+  const defs = s("defs",{}); markers(defs); root.append(defs, s("rect",{width:W,height:H,fill:"#ffffff"}));
+  const mode = ui.mode && st.modes.find(m=>m.id===ui.mode);
+  root.append(s("text",{class:"x-title",x:P,y:42,text:st.name||"Streaming setup"}),
+    s("text",{class:"x-sub",x:P,y:62,text:(mode?"Activity: "+mode.name:"All connections")+" · "+new Date().toISOString().slice(0,10)}));
+  const g = s("g",{transform:`translate(${P-x0+(W-(x1-x0)-P*2)/2} ${top+P-y0})`});
+  buildDiagram(g, st, {mode:ui.mode,trace:null,sel:null,layers:ui.layers,labels:ui.labels,interactive:false}); root.append(g);
+  let lx = P; const ly = H-foot+18;
+  for (const k of used){ const lg = s("g",{class:"edge sig-"+k,transform:`translate(${lx} ${ly})`}, s("path",{class:"line",d:"M0 0H34","stroke-dasharray":SIGNALS[k].dash||null}), s("text",{class:"x-leg",x:42,y:4,text:SIGNALS[k].label}));
+    root.append(lg); lx += 56 + SIGNALS[k].label.length*6.6; }
+  rep.sources.forEach((r,i)=>root.append(s("text",{class:"x-sub",x:P,y:ly+30+i*19,text:`${r.d.name}: ${r.used} of ${r.outlets} outlets used, ${fmt(r.load)} W of ${fmt(r.maxW)} W`})));
+  return {text:'<?xml version="1.0" encoding="UTF-8"?>\n'+new XMLSerializer().serializeToString(root), W, H};
+}
+let downloads = null;
+(async()=>{ try{ if (window.claude && typeof window.claude.use==="function") downloads = await window.claude.use("downloads"); }catch(e){} })();
+async function saveFile(filename,data,type){
+  if (downloads){ try{ await downloads.save({filename,data}); toast("Saved "+filename); }
+    catch(err){ const c = err && err.code; toast(c==="declined" ? "Save cancelled." : c==="rate_limited" ? "A save prompt is already open. Try again in a moment." : "This view could not save the file. Use Copy setup code in the Details tab instead."); }
+    return; }
+  try{ const blob = data instanceof Blob ? data : new Blob([data],{type}); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = filename; document.body.append(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),4000); }
+  catch(e){ toast("This view could not save the file. Use Copy setup code in the Details tab instead."); }
+}
+const slug = () => (cur().name||"setup").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"") || "setup";
+const setupCode = () => JSON.stringify({app:"stream-setup-map",v:1,setup:cur()},null,1);
+function copyCode(){ try{ navigator.clipboard.writeText(setupCode()).then(()=>toast("Setup code copied. Paste it into a message or a text file."),()=>toast("Copying was blocked here. Use Save setup file instead.")); }catch(e){ toast("Copying was blocked here. Use Save setup file instead."); } }
+$("#btnSvg").onclick = ()=>{ const x = exportSvg(); if (!x) return toast("Add a device first."); saveFile(slug()+".svg", x.text, "image/svg+xml"); };
+$("#btnPng").onclick = ()=>{ const x = exportSvg(); if (!x) return toast("Add a device first.");
+  const img = new Image(); img.onload = ()=>{ const k = 2, c = document.createElement("canvas"); c.width = x.W*k; c.height = x.H*k; const ctx = c.getContext("2d"); ctx.scale(k,k); ctx.drawImage(img,0,0,x.W,x.H);
+    try{ c.toBlob(b=>{ if (b) saveFile(slug()+".png", b, "image/png"); else toast("Could not make the image. Try Save SVG."); },"image/png"); }catch(e){ toast("Could not make the image. Try Save SVG."); } };
+  img.onerror = ()=>toast("Could not make the image. Try Save SVG.");
+  img.src = "data:image/svg+xml;charset=utf-8,"+encodeURIComponent(x.text); };
+$("#btnFile").onclick = ()=>saveFile(slug()+".stream-setup.json", setupCode(), "application/json");
+
+/* ---------- open / import ---------- */
+function importSetup(text){
+  const p = JSON.parse(text), st = p && p.setup ? p.setup : p;
+  if (!st || !Array.isArray(st.devices) || !Array.isArray(st.conns)) throw new Error("shape");
+  st.devices = st.devices.filter(d=>d && TYPES[d.type]).map(d=>Object.assign({note:"",watts:0,plugs:0,bulky:false,powerSource:null},d,{x:+d.x||0,y:+d.y||0,id:String(d.id),name:String(d.name||"")}));
+  st.devices.forEach(d=>{ if (d.groups !== undefined) d.groups = (Array.isArray(d.groups)?d.groups:[]).filter(g=>g && Array.isArray(g.ports)); });
+  const ids = new Set(st.devices.map(d=>d.id));
+  st.conns = st.conns.filter(c=>c && ids.has(c.from) && ids.has(c.to) && CABLES[c.cable]).map(c=>Object.assign({dir:"one",label:"",audio:false},c,{signal:SIGNALS[c.signal]&&c.signal!=="power"&&c.signal!=="soft"?c.signal:CABLES[c.cable].signal,modes:Array.isArray(c.modes)?c.modes:[]}));
+  st.modes = Array.isArray(st.modes) ? st.modes.filter(m=>m&&m.id).map(m=>({id:String(m.id),name:String(m.name||""),streamer:ids.has(m.streamer)?m.streamer:null,note:String(m.note||"")})) : [];
+  st.devices.forEach(d=>{ if (d.type==="desktop" && d.groups===undefined) equip(st,d); });
+  st.devices.forEach(d=>{ if (d.scale !== undefined){ d.scale = +d.scale; if (!(d.scale >= .6 && d.scale <= 2.5)) delete d.scale; } });
+  usbDefaults(st); mixUpgrade(st); st.devices.forEach(d=>{ if (d.color && !/^#[0-9a-f]{6}$/i.test(d.color)) d.color = ""; }); colourAll(st);
+  st.devices.forEach(d=>{ if (d.type==="app"){ d.uses = Array.isArray(d.uses) ? d.uses.map(String) : []; d.dest = String(d.dest||""); } });
+  st.devices.forEach(d=>{ if (d.type==="software"){ d.mix = Object.assign(newMix(),d.mix); d.channels = Array.isArray(d.channels)?d.channels:[]; } });
+  st.id = uid(); st.name = String(st.name||"Imported setup"); st.view = null; st.notes = String(st.notes||"");
+  snap(); store.setups.push(st); store.current = st.id; ui.sel = null; ui.mode = null; ui.trace = null; fitSoon(); save();
+}
+$("#btnOpen").onclick = ()=>{ $("#openErr").hidden = true; $("#openText").value = ""; $("#openFile").value = ""; $("#dlgOpen").showModal(); };
+$("#openCancel").onclick = ()=>$("#dlgOpen").close();
+$("#openOk").addEventListener("click", async e=>{
+  e.preventDefault(); const f = $("#openFile").files[0]; let text = $("#openText").value.trim();
+  try{ if (f) text = await f.text(); if (!text) throw new Error("empty"); importSetup(text); $("#dlgOpen").close(); toast("Setup added."); }
+  catch(err){ const m = $("#openErr"); m.textContent = err.message==="empty" ? "Choose a file or paste setup code first." : "That is not a setup from this app. Choose a .json file saved with Save setup file."; m.hidden = false; }
+});
+function confirmBox(title,text,yes,fn){ $("#confTitle").textContent = title; $("#confText").textContent = text; $("#confYes").textContent = yes; const d = $("#dlgConfirm"); $("#confYes").onclick = ()=>{ d.close(); fn(); }; $("#confNo").onclick = ()=>d.close(); d.showModal(); }
+
+/* ---------- top bar ---------- */
+$("#setupSel").onchange = e=>{ store.current = e.target.value; ui.sel = null; ui.mode = null; ui.trace = null; if (!cur().view) fit(); render(); save(); };
+(()=>{ let snapped = false; const n = $("#setupName"); n.oninput = ()=>{ if (!snapped){ snap(); snapped = true; } cur().name = n.value; const o = $("#setupSel").selectedOptions[0]; if (o) o.textContent = n.value||"Untitled"; save(); }; n.onblur = ()=>{ snapped = false; }; })();
+/* setups made before colours existed get them on first load */
+$("#btnNew").onclick = ()=>{ snap(); const st = {id:uid(),name:"New setup",notes:"",view:null,modes:[{id:uid(),name:"Streaming"}],devices:[],conns:[]}; store.setups.push(st); store.current = st.id; ui.sel = null; ui.mode = null; ui.trace = null; render(); save(); };
+$("#btnDup").onclick = ()=>{ snap(); const c = JSON.parse(JSON.stringify(cur())); c.id = uid(); c.name = (c.name||"Setup")+" (upgrade plan)"; store.setups.push(c); store.current = c.id; render(); save(); toast("Copied. Changes here leave the original untouched."); };
+$("#btnDel").onclick = ()=>confirmBox("Delete this setup?", `"${cur().name}" will be removed from this browser. Undo brings it back until you close the page.`, "Delete setup", ()=>{ snap(); store.setups = store.setups.filter(x=>x.id!==store.current); store.current = store.setups[0].id; ui.sel = null; ui.mode = null; ui.trace = null; render(); save(); });
+$("#modeCancel").onclick = ()=>$("#dlgMode").close();
+$("#modeName").addEventListener("keydown", e=>{ if (e.key==="Enter"){ e.preventDefault(); $("#modeOk").click(); } });
+$("#modeOk").addEventListener("click", e=>{ e.preventDefault(); const st = cur(), name = $("#modeName").value.trim();
+  if (!name){ $("#modeErr").hidden = false; $("#modeName").focus(); return; }
+  snap(); const m = {id:uid(),name,streamer:$("#modeStream").value||null,note:""}, src = $("#modeCopy").value; st.modes.push(m);
+  if (src) st.conns.forEach(c=>{ if (c.modes.includes(src)) c.modes.push(m.id); });
+  ui.mode = m.id; $("#dlgMode").close(); render(); save(); toast(src ? "Filter added with the same cables. Select a cable to change which filters it belongs to." : "Filter added. Select a cable and tick this filter under In use during."); });
+$("#emptyExample").onclick = addExample;
+$("#btnUndo").onclick = doUndo;
+$("#zIn").onclick = ()=>zoomBy(1.2); $("#zOut").onclick = ()=>zoomBy(1/1.2); $("#zFit").onclick = ()=>{ fit(); drawCanvas(); save(); };
+
+/* ---------- start ---------- */
+$("#defs").append(s("pattern",{id:"grid",width:20,height:20,patternUnits:"userSpaceOnUse"}, s("circle",{class:"gdot",cx:1,cy:1,r:1})));
+markers($("#defs"));
+if (store.v < 5){ store.setups.forEach(streamUpgrade); store.v = 5; save(); }
+renderPalette();
+if (!cur().view) fit();
+render();
+window.addEventListener("resize", ()=>drawCanvas());
+</script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+# Saved setups are personal. Keep them out of the repository.
+*.stream-setup.json
+*.setup.json
+setups/
+# Exported diagrams
+*-export.png
+*-export.svg
+.DS_Store
+Thumbs.db
